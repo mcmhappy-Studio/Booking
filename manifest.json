@@ -1,6 +1,6 @@
 {
   "name": "Studio Booking",
-  "short_name": "Booking",
+  "short_name": "MCM Booking",
   "description": "Calendar de rezervări foto/video",
   "start_url": "/",
   "display": "standalone",
@@ -9,9 +9,13 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230f0f0f'/><text x='96' y='130' font-size='100' text-anchor='middle'>📷</text></svg>",
+      "src": "data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'&gt;&lt;rect width='192' height='192' rx='32' fill='%230f0f0f'/&gt;&lt;text x='96' y='130' font-size='100' text-anchor='middle'&gt;📷&lt;/text&gt;&lt;/svg&gt;",
       "sizes": "192x192",
       "type": "image/svg+xml"
     }
+  ],
+  "lang": "ro",
+  "categories": [
+    "business"
   ]
 }
