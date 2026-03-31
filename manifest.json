@@ -9,7 +9,7 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "data:image/svg+xml,&amp;lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'&amp;gt;&amp;lt;rect width='192' height='192' rx='32' fill='%230f0f0f'/&amp;gt;&amp;lt;text x='96' y='130' font-size='100' text-anchor='middle'&amp;gt;📷&amp;lt;/text&amp;gt;&amp;lt;/svg&amp;gt;",
+      "src": "data:image/svg+xml,&amp;amp;lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'&amp;amp;gt;&amp;amp;lt;rect width='192' height='192' rx='32' fill='%230f0f0f'/&amp;amp;gt;&amp;amp;lt;text x='96' y='130' font-size='100' text-anchor='middle'&amp;amp;gt;📷&amp;amp;lt;/text&amp;amp;gt;&amp;amp;lt;/svg&amp;amp;gt;",
       "sizes": "192x192",
       "type": "image/svg+xml"
     }
@@ -17,5 +17,10 @@
   "lang": "ro",
   "categories": [
     "business"
+  ],
+  "scope": "Studio Booking",
+  "prefer_related_applications": true,
+  "display_override": [
+    "window-controls-overlay"
   ]
 }
