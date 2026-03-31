@@ -1,26 +1,35 @@
 {
-  "name": "Studio Booking",
-  "short_name": "MCM Booking",
-  "description": "Calendar de rezervări foto/video",
-  "start_url": "/",
+  "name": "MCM Happy Studio",
+  "short_name": "MCM Studio",
+  "description": "Calendar de rezervari foto/video - MCM Happy Studio",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0f0f0f",
-  "theme_color": "#0f0f0f",
-  "orientation": "portrait",
+  "theme_color": "#c9a84c",
+  "orientation": "portrait-primary",
+  "lang": "ro",
+  "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "data:image/svg+xml,&amp;amp;lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'&amp;amp;gt;&amp;amp;lt;rect width='192' height='192' rx='32' fill='%230f0f0f'/&amp;amp;gt;&amp;amp;lt;text x='96' y='130' font-size='100' text-anchor='middle'&amp;amp;gt;📷&amp;amp;lt;/text&amp;amp;gt;&amp;amp;lt;/svg&amp;amp;gt;",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
-  "lang": "ro",
-  "categories": [
-    "business"
-  ],
-  "scope": "Studio Booking",
-  "prefer_related_applications": true,
-  "display_override": [
-    "window-controls-overlay"
+  "screenshots": [
+    {
+      "src": "screenshot.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
   ]
 }
