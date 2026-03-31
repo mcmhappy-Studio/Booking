@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Studio Booking</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Studio Booking">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --bg2: #181818;
+    --bg3: #222222;
+    --bg4: #2a2a2a;
+    --gold: #c9a84c;
+    --gold2: #e8c76b;
+    --gold-dim: rgba(201,168,76,0.15);
+    --text: #f0ece4;
+    --text2: #a89f8e;
+    --text3: #6a6259;
+    --border: rgba(201,168,76,0.18);
+    --border2: rgba(255,255,255,0.08);
+    --danger: #d45a4a;
+    --success: #4a9e6f;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+
+  #app {
+    max-width: 430px;
+    margin: 0 auto;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* HEADER */
+  .header {
+    padding: 52px 20px 16px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--gold2);
+    letter-spacing: 0.04em;
+  }
+  .logo span { color: var(--text2); font-weight: 400; font-size: 13px; letter-spacing: 0.06em; margin-left: 6px; }
+  .header-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all 0.2s;
+    font-size: 16px;
+  }
+  .icon-btn:hover { background: var(--bg4); color: var(--gold); border-color: var(--border); }
+  .icon-btn.add-btn { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+  .icon-btn.add-btn:hover { background: var(--gold2); }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 4px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    letter-spacing: 0.03em;
+  }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); font-weight: 500; }
+  .tab:hover:not(.active) { color: var(--text2); }
+
+  /* VIEWS */
+  .view { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+  .view.hidden { display: none; }
+
+  /* CALENDAR */
+  .cal-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 8px;
+  }
+  .cal-month {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 500;
+    color: var(--text);
+    text-transform: capitalize;
+  }
+  .cal-nav-btn {
+    width: 32px; height: 32px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 50%; cursor: pointer; color: var(--text2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; transition: all 0.2s;
+  }
+  .cal-nav-btn:hover { color: var(--gold); border-color: var(--border); }
+
+  .cal-grid { padding: 0 12px; }
+  .cal-days-header {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+  }
+  .cal-day-label {
+    text-align: center; font-size: 11px; font-weight: 500;
+    color: var(--text3); padding: 6px 0;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .cal-cells { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-cell {
+    aspect-ratio: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .cal-cell:hover:not(.empty):not(.today-cell) { background: var(--bg3); }
+  .cal-cell.empty { cursor: default; }
+  .cal-cell.other-month .cal-num { color: var(--text3); opacity: 0.4; }
+  .cal-num {
+    font-size: 14px; font-weight: 400; color: var(--text2);
+    line-height: 1;
+  }
+  .cal-cell.today-cell { background: var(--gold-dim); }
+  .cal-cell.today-cell .cal-num { color: var(--gold); font-weight: 500; }
+  .cal-cell.selected-day { background: var(--gold); }
+  .cal-cell.selected-day .cal-num { color: var(--bg); font-weight: 500; }
+  .cal-cell.selected-day .cal-dots span { background: var(--bg) !important; }
+
+  .cal-dots {
+    display: flex; gap: 2px; margin-top: 2px; height: 5px;
+    align-items: center;
+  }
+  .cal-dots span {
+    width: 4px; height: 4px; border-radius: 50%;
+  }
+  .dot-foto { background: var(--gold); }
+  .dot-video { background: #6b9fd4; }
+  .dot-ambele { background: #8a6bc4; }
+
+  /* DAY DETAIL */
+  .day-detail {
+    margin: 12px 16px 0;
+    border-radius: var(--radius);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .day-detail-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border2);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px; color: var(--gold2);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .day-detail-header span { font-size: 12px; color: var(--text3); font-family: 'DM Sans', sans-serif; }
+  .no-bookings {
+    padding: 24px 16px;
+    text-align: center; color: var(--text3); font-size: 13px;
+  }
+
+  /* BOOKING CARD (in day detail) */
+  .booking-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border2);
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .booking-item:last-child { border-bottom: none; }
+  .booking-item:hover { background: var(--bg3); }
+  .booking-color-bar {
+    width: 3px; height: 40px; border-radius: 2px; flex-shrink: 0;
+  }
+  .booking-info { flex: 1; min-width: 0; }
+  .booking-name {
+    font-weight: 500; font-size: 14px; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .booking-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .booking-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px; color: var(--gold); font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  /* CLIENTS VIEW */
+  .clients-list { padding: 12px 16px; }
+  .client-card {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: 14px 16px;
+    margin-bottom: 10px; cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .client-card:hover { border-color: var(--border); background: var(--bg3); }
+  .client-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--gold-dim); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px; color: var(--gold); font-weight: 600;
+    flex-shrink: 0;
+  }
+  .client-info { flex: 1; min-width: 0; }
+  .client-name { font-weight: 500; font-size: 14px; color: var(--text); }
+  .client-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .client-badge {
+    font-size: 11px; font-weight: 500; padding: 3px 8px;
+    border-radius: 20px; flex-shrink: 0;
+  }
+  .badge-foto { background: rgba(201,168,76,0.15); color: var(--gold); }
+  .badge-video { background: rgba(107,159,212,0.15); color: #6b9fd4; }
+  .badge-ambele { background: rgba(138,107,196,0.15); color: #8a6bc4; }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* SEARCH */
+  .search-box {
+    margin: 12px 16px 0;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px 10px 38px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-box input:focus { border-color: var(--border); }
+  .search-box input::placeholder { color: var(--text3); }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); color: var(--text3); font-size: 15px;
+  }
+
+  /* STATS */
+  .stats-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px; padding: 14px 16px 0;
+  }
+  .stat-card {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 12px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 600; color: var(--gold);
+  }
+  .stat-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    display: flex; align-items: flex-end;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    width: 100%; max-width: 430px; margin: 0 auto;
+    background: var(--bg2);
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid var(--border);
+    padding: 0 0 40px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-height: 92dvh;
+    overflow-y: auto;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--bg4); border-radius: 2px;
+    margin: 12px auto 0;
+  }
+  .modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 500;
+    padding: 16px 20px 12px;
+    color: var(--gold2);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title .close-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--bg3); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--text2); font-size: 14px;
+  }
+  .modal-title .close-btn:hover { color: var(--text); }
+
+  .form-group { padding: 8px 20px 0; }
+  .form-label {
+    font-size: 11px; font-weight: 500; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 6px; display: block;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--gold);
+    background: var(--bg4);
+  }
+  .form-input::placeholder, .form-textarea::placeholder { color: var(--text3); }
+  .form-select { cursor: pointer; }
+  .form-select option { background: var(--bg2); }
+  .form-textarea { resize: none; height: 80px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 20px 0; }
+  .form-row .form-group { padding: 0; }
+
+  /* Type selector */
+  .type-selector { display: flex; gap: 8px; }
+  .type-btn {
+    flex: 1; padding: 10px 6px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text2);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .type-btn:hover { border-color: var(--border); color: var(--text); }
+  .type-btn.sel-foto { background: rgba(201,168,76,0.2); border-color: var(--gold); color: var(--gold); }
+  .type-btn.sel-video { background: rgba(107,159,212,0.2); border-color: #6b9fd4; color: #6b9fd4; }
+  .type-btn.sel-ambele { background: rgba(138,107,196,0.2); border-color: #8a6bc4; color: #8a6bc4; }
+
+  /* Action buttons */
+  .modal-actions { display: flex; gap: 10px; padding: 20px 20px 0; }
+  .btn-primary {
+    flex: 1; padding: 14px;
+    background: var(--gold); color: var(--bg);
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .btn-primary:hover { background: var(--gold2); }
+  .btn-danger {
+    padding: 14px 18px;
+    background: transparent; color: var(--danger);
+    border: 1px solid rgba(212,90,74,0.3);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-danger:hover { background: rgba(212,90,74,0.1); }
+
+  /* Avans indicator */
+  .avans-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 20px 0;
+  }
+  .avans-check {
+    width: 20px; height: 20px;
+    border: 1.5px solid var(--border2);
+    border-radius: 5px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg3); flex-shrink: 0;
+    transition: all 0.15s; color: transparent; font-size: 12px;
+  }
+  .avans-check.checked { background: var(--success); border-color: var(--success); color: white; }
+  .avans-label { font-size: 14px; color: var(--text2); cursor: pointer; }
+
+  /* Install banner */
+  .install-banner {
+    margin: 10px 16px 0;
+    background: var(--gold-dim);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+  }
+  .install-banner p { font-size: 12px; color: var(--gold); line-height: 1.4; }
+  .install-banner span { font-size: 16px; flex-shrink: 0; }
+  .install-close { margin-left: auto; color: var(--text3); font-size: 16px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* Divider */
+  .form-divider {
+    margin: 14px 20px 0;
+    height: 1px; background: var(--border2);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">Studio<span>BOOKING</span></div>
+      <div class="header-actions">
+        <div class="icon-btn" id="searchToggleBtn" title="Caută">🔍</div>
+        <div class="icon-btn add-btn" id="addBookingBtn" title="Rezervare nouă">+</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="calendar">📅 Calendar</div>
+    <div class="tab" data-tab="clients">👤 Clienți</div>
+    <div class="tab" data-tab="upcoming">⏰ Urmează</div>
+  </div>
+
+  <!-- CALENDAR VIEW -->
+  <div class="view" id="calendarView">
+    <div class="cal-nav">
+      <div class="cal-nav-btn" id="prevMonth">&#8592;</div>
+      <div class="cal-month" id="calMonthTitle"></div>
+      <div class="cal-nav-btn" id="nextMonth">&#8594;</div>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-days-header">
+        <div class="cal-day-label">Lu</div>
+        <div class="cal-day-label">Ma</div>
+        <div class="cal-day-label">Mi</div>
+        <div class="cal-day-label">Jo</div>
+        <div class="cal-day-label">Vi</div>
+        <div class="cal-day-label">Sâ</div>
+        <div class="cal-day-label">Du</div>
+      </div>
+      <div class="cal-cells" id="calCells"></div>
+    </div>
+    <div class="day-detail" id="dayDetail" style="display:none">
+      <div class="day-detail-header">
+        <span id="dayDetailTitle"></span>
+        <span id="dayDetailCount"></span>
+      </div>
+      <div id="dayDetailItems"></div>
+    </div>
+    <div id="installBanner"></div>
+  </div>
+
+  <!-- CLIENTS VIEW -->
+  <div class="view hidden" id="clientsView">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="clientSearch" placeholder="Caută client...">
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="clients-list" id="clientsList"></div>
+  </div>
+
+  <!-- UPCOMING VIEW -->
+  <div class="view hidden" id="upcomingView">
+    <div class="clients-list" id="upcomingList"></div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="bookingModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span id="modalTitle">Rezervare nouă</span>
+      <div class="close-btn" id="closeModal">✕</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Tip ședință</label>
+      <div class="type-selector">
+        <div class="type-btn" data-type="foto">📷 Foto</div>
+        <div class="type-btn" data-type="video">🎬 Video</div>
+        <div class="type-btn" data-type="ambele">✨ Ambele</div>
+      </div>
+    </div>
+
+    <div class="form-divider"></div>
+
+    <div class="form-group">
+      <label class="form-label">Nume client *</label>
+      <input type="text" class="form-input" id="fName" placeholder="ex: Ana Ionescu">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Telefon</label>
+        <input type="tel" class="form-input" id="fPhone" placeholder="+40 7xx xxx xxx">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="fEmail" placeholder="email@...">
+      </div>
+    </div>
+
+    <div class="form-divider"></div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Data *</label>
+        <input type="date" class="form-input" id="fDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ora</label>
+        <input type="time" class="form-input" id="fTime">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Locație</label>
+      <input type="text" class="form-input" id="fLocation" placeholder="ex: Studio / Parcul Herăstrău / ...">
+    </div>
+
+    <div class="form-divider"></div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Preț total (lei)</label>
+        <input type="number" class="form-input" id="fPrice" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Avans (lei)</label>
+        <input type="number" class="form-input" id="fAdvance" placeholder="0">
+      </div>
+    </div>
+
+    <div class="avans-row">
+      <div class="avans-check" id="avansCheckbox"></div>
+      <label class="avans-label" id="avansLabel">Avans încasat</label>
+    </div>
+
+    <div class="form-group" style="margin-top:8px">
+      <label class="form-label">Notițe</label>
+      <textarea class="form-textarea form-input" id="fNotes" placeholder="Detalii suplimentare..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" id="saveBookingBtn">Salvează rezervarea</button>
+      <button class="btn-danger" id="deleteBookingBtn" style="display:none">Șterge</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DB_KEY = 'studio_bookings_v1';
+let bookings = [];
+let currentDate = new Date();
+let selectedDate = null;
+let editingId = null;
+let selectedType = null;
+let avansChecked = false;
+let deferredPrompt = null;
+
+function load() {
+  try { bookings = JSON.parse(localStorage.getItem(DB_KEY)) || []; } catch { bookings = []; }
+}
+function save() { localStorage.setItem(DB_KEY, JSON.stringify(bookings)); }
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function formatDate(d) {
+  const date = new Date(d + 'T00:00:00');
+  return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function typeColor(t) {
+  if (t === 'foto') return 'var(--gold)';
+  if (t === 'video') return '#6b9fd4';
+  return '#8a6bc4';
+}
+
+function typeLabel(t) {
+  if (t === 'foto') return '📷 Foto';
+  if (t === 'video') return '🎬 Video';
+  return '✨ Foto+Video';
+}
+
+// ── CALENDAR ────────────────────────────────────────
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const months = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+  document.getElementById('calMonthTitle').textContent = months[month] + ' ' + year;
+
+  const cells = document.getElementById('calCells');
+  cells.innerHTML = '';
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let startDow = firstDay.getDay(); // 0=Sun
+  startDow = startDow === 0 ? 6 : startDow - 1; // Mon=0
+
+  const today = new Date();
+  const todayStr = toDateStr(today);
+
+  // prev month days
+  for (let i = 0; i < startDow; i++) {
+    const d = new Date(year, month, -startDow + i + 1);
+    const ds = toDateStr(d);
+    cells.appendChild(makeCell(d.getDate(), ds, true));
+  }
+  // current month
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dt = new Date(year, month, d);
+    const ds = toDateStr(dt);
+    cells.appendChild(makeCell(d, ds, false, ds === todayStr, ds === selectedDate));
+  }
+  // fill rest
+  const total = startDow + lastDay.getDate();
+  const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= rem; i++) {
+    const dt = new Date(year, month + 1, i);
+    cells.appendChild(makeCell(i, toDateStr(dt), true));
+  }
+
+  renderDayDetail();
+}
+
+function toDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function makeCell(num, ds, otherMonth, isToday, isSelected) {
+  const div = document.createElement('div');
+  div.className = 'cal-cell' + (otherMonth?' other-month':'') + (isToday?' today-cell':'') + (isSelected?' selected-day':'');
+
+  const numEl = document.createElement('div');
+  numEl.className = 'cal-num';
+  numEl.textContent = num;
+  div.appendChild(numEl);
+
+  const dayBookings = bookings.filter(b => b.date === ds);
+  if (dayBookings.length > 0) {
+    const dots = document.createElement('div');
+    dots.className = 'cal-dots';
+    const types = [...new Set(dayBookings.map(b => b.type))].slice(0,3);
+    types.forEach(t => {
+      const s = document.createElement('span');
+      s.className = 'dot-' + (t||'foto');
+      dots.appendChild(s);
+    });
+    div.appendChild(dots);
+  }
+
+  if (!otherMonth) {
+    div.addEventListener('click', () => {
+      selectedDate = ds;
+      currentDate = new Date(ds + 'T00:00:00');
+      renderCalendar();
+    });
+  }
+  return div;
+}
+
+function renderDayDetail() {
+  const det = document.getElementById('dayDetail');
+  if (!selectedDate) { det.style.display = 'none'; return; }
+  const dayBookings = bookings.filter(b => b.date === selectedDate).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  det.style.display = '';
+  document.getElementById('dayDetailTitle').textContent = formatDate(selectedDate);
+  document.getElementById('dayDetailCount').textContent = dayBookings.length ? dayBookings.length + ' rezervări' : '';
+  const items = document.getElementById('dayDetailItems');
+  if (!dayBookings.length) {
+    items.innerHTML = '<div class="no-bookings">Nicio rezervare în această zi</div>';
+    return;
+  }
+  items.innerHTML = dayBookings.map(b => `
+    <div class="booking-item" onclick="openEdit('${b.id}')">
+      <div class="booking-color-bar" style="background:${typeColor(b.type)}"></div>
+      <div class="booking-info">
+        <div class="booking-name">${b.name}</div>
+        <div class="booking-meta">${b.time ? b.time + ' · ' : ''}${typeLabel(b.type)}${b.location ? ' · ' + b.location : ''}</div>
+      </div>
+      ${b.price ? `<div class="booking-price">${Number(b.price).toLocaleString('ro-RO')} lei</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── CLIENTS ─────────────────────────────────────────
+function renderClients(filter='') {
+  const q = filter.toLowerCase();
+  const clients = {};
+  bookings.forEach(b => {
+    if (!clients[b.name]) clients[b.name] = { name:b.name, phone:b.phone, email:b.email, bookings:[], totalRev:0 };
+    clients[b.name].bookings.push(b);
+    clients[b.name].totalRev += Number(b.price)||0;
+  });
+
+  let list = Object.values(clients).filter(c => !q || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.email||'').toLowerCase().includes(q));
+  list.sort((a,b) => a.name.localeCompare(b.name, 'ro'));
+
+  // stats
+  const totalRev = bookings.reduce((s,b) => s+(Number(b.price)||0), 0);
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${Object.keys(clients).length}</div><div class="stat-lbl">Clienți</div></div>
+    <div class="stat-card"><div class="stat-val">${bookings.length}</div><div class="stat-lbl">Rezervări</div></div>
+    <div class="stat-card"><div class="stat-val">${(totalRev/1000).toFixed(1)}k</div><div class="stat-lbl">Lei total</div></div>
+  `;
+
+  const el = document.getElementById('clientsList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📷</div><p>Niciun client încă.<br>Adaugă prima rezervare!</p></div>';
+    return;
+  }
+  el.innerHTML = list.map(c => {
+    const initials = c.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const types = [...new Set(c.bookings.map(b=>b.type))];
+    const lastB = c.bookings.sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const mainType = types[0] || 'foto';
+    const badgeClass = types.length>1 ? 'ambele' : mainType;
+    return `
+      <div class="client-card" onclick="filterByClient('${c.name.replace(/'/g,"\\'")}')">
+        <div class="client-avatar">${initials}</div>
+        <div class="client-info">
+          <div class="client-name">${c.name}</div>
+          <div class="client-sub">${c.phone||c.email||'—'} · ${c.bookings.length} ședință${c.bookings.length!==1?'e':''}</div>
+        </div>
+        <span class="client-badge badge-${badgeClass}">${types.map(typeLabel).join(', ')}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterByClient(name) {
+  switchTab('upcoming');
+  renderUpcoming(name);
+}
+
+// ── UPCOMING ─────────────────────────────────────────
+function renderUpcoming(filterName='') {
+  const today = toDateStr(new Date());
+  let list = bookings.filter(b => b.date >= today);
+  if (filterName) list = bookings.filter(b => b.name === filterName);
+  list.sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''));
+
+  const el = document.getElementById('upcomingList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⏰</div><p>${filterName ? 'Nicio rezervare pentru ' + filterName : 'Nicio rezervare viitoare'}</p></div>`;
+    return;
+  }
+
+  let html = '';
+  let lastDate = '';
+  list.forEach(b => {
+    if (b.date !== lastDate) {
+      lastDate = b.date;
+      html += `<div style="padding: 12px 16px 4px; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.08em">${formatDate(b.date)}</div>`;
+    }
+    html += `
+      <div class="client-card" onclick="openEdit('${b.id}')">
+        <div class="client-avatar" style="background:${typeColor(b.type)}22; border-color:${typeColor(b.type)}44;">
+          <span style="font-size:18px">${b.type==='video'?'🎬':b.type==='ambele'?'✨':'📷'}</span>
+        </div>
+        <div class="client-info">
+          <div class="client-name">${b.name}</div>
+          <div class="client-sub">${b.time||'—'} ${b.location?'· '+b.location:''}</div>
+        </div>
+        ${b.price ? `<div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')}<span style="font-size:11px;color:var(--text3)"> lei</span></div>` : ''}
+      </div>
+    `;
+  });
+  el.innerHTML = html;
+}
+
+// ── MODAL ────────────────────────────────────────────
+function openAdd(dateStr) {
+  editingId = null;
+  selectedType = 'foto';
+  avansChecked = false;
+  document.getElementById('modalTitle').textContent = 'Rezervare nouă';
+  document.getElementById('deleteBookingBtn').style.display = 'none';
+  document.getElementById('fName').value = '';
+  document.getElementById('fPhone').value = '';
+  document.getElementById('fEmail').value = '';
+  document.getElementById('fDate').value = dateStr || (selectedDate || toDateStr(new Date()));
+  document.getElementById('fTime').value = '';
+  document.getElementById('fLocation').value = '';
+  document.getElementById('fPrice').value = '';
+  document.getElementById('fAdvance').value = '';
+  document.getElementById('fNotes').value = '';
+  updateTypeUI();
+  updateAvansUI();
+  openModal();
+}
+
+function openEdit(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  editingId = id;
+  selectedType = b.type || 'foto';
+  avansChecked = !!b.avansIncasat;
+  document.getElementById('modalTitle').textContent = 'Editează rezervarea';
+  document.getElementById('deleteBookingBtn').style.display = '';
+  document.getElementById('fName').value = b.name || '';
+  document.getElementById('fPhone').value = b.phone || '';
+  document.getElementById('fEmail').value = b.email || '';
+  document.getElementById('fDate').value = b.date || '';
+  document.getElementById('fTime').value = b.time || '';
+  document.getElementById('fLocation').value = b.location || '';
+  document.getElementById('fPrice').value = b.price || '';
+  document.getElementById('fAdvance').value = b.advance || '';
+  document.getElementById('fNotes').value = b.notes || '';
+  updateTypeUI();
+  updateAvansUI();
+  openModal();
+}
+
+function openModal() { document.getElementById('bookingModal').classList.add('open'); }
+function closeModal() { document.getElementById('bookingModal').classList.remove('open'); }
+
+function updateTypeUI() {
+  document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.className = 'type-btn' + (btn.dataset.type === selectedType ? ' sel-' + selectedType : '');
+  });
+}
+
+function updateAvansUI() {
+  const cb = document.getElementById('avansCheckbox');
+  cb.className = 'avans-check' + (avansChecked ? ' checked' : '');
+  cb.textContent = avansChecked ? '✓' : '';
+}
+
+function saveBooking() {
+  const name = document.getElementById('fName').value.trim();
+  const date = document.getElementById('fDate').value;
+  if (!name) { alert('Introdu numele clientului!'); return; }
+  if (!date) { alert('Selectează data!'); return; }
+
+  const b = {
+    id: editingId || uid(),
+    name, date,
+    type: selectedType || 'foto',
+    phone: document.getElementById('fPhone').value.trim(),
+    email: document.getElementById('fEmail').value.trim(),
+    time: document.getElementById('fTime').value,
+    location: document.getElementById('fLocation').value.trim(),
+    price: document.getElementById('fPrice').value,
+    advance: document.getElementById('fAdvance').value,
+    avansIncasat: avansChecked,
+    notes: document.getElementById('fNotes').value.trim(),
+  };
+
+  if (editingId) {
+    const idx = bookings.findIndex(x => x.id === editingId);
+    if (idx !== -1) bookings[idx] = b;
+  } else {
+    bookings.push(b);
+  }
+  save();
+  closeModal();
+  selectedDate = date;
+  const d = new Date(date + 'T00:00:00');
+  currentDate = d;
+  renderAll();
+}
+
+function deleteBooking() {
+  if (!editingId) return;
+  if (!confirm('Ștergi această rezervare?')) return;
+  bookings = bookings.filter(b => b.id !== editingId);
+  save();
+  closeModal();
+  renderAll();
+}
+
+// ── TABS ─────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('calendarView').classList.toggle('hidden', tab !== 'calendar');
+  document.getElementById('clientsView').classList.toggle('hidden', tab !== 'clients');
+  document.getElementById('upcomingView').classList.toggle('hidden', tab !== 'upcoming');
+  if (tab === 'clients') renderClients();
+  if (tab === 'upcoming') renderUpcoming();
+}
+
+function renderAll() {
+  renderCalendar();
+  const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+  if (activeTab === 'clients') renderClients();
+  if (activeTab === 'upcoming') renderUpcoming();
+}
+
+// ── EVENTS ───────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+document.getElementById('prevMonth').addEventListener('click', () => {
+  currentDate.setMonth(currentDate.getMonth() - 1);
+  selectedDate = null;
+  renderCalendar();
+});
+document.getElementById('nextMonth').addEventListener('click', () => {
+  currentDate.setMonth(currentDate.getMonth() + 1);
+  selectedDate = null;
+  renderCalendar();
+});
+document.getElementById('addBookingBtn').addEventListener('click', () => openAdd());
+document.getElementById('closeModal').addEventListener('click', closeModal);
+document.getElementById('bookingModal').addEventListener('click', e => { if (e.target === document.getElementById('bookingModal')) closeModal(); });
+document.getElementById('saveBookingBtn').addEventListener('click', saveBooking);
+document.getElementById('deleteBookingBtn').addEventListener('click', deleteBooking);
+
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => { selectedType = btn.dataset.type; updateTypeUI(); });
+});
+
+document.getElementById('avansCheckbox').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
+document.getElementById('avansLabel').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
+
+document.getElementById('clientSearch').addEventListener('input', e => renderClients(e.target.value));
+
+// PWA install prompt
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const banner = document.getElementById('installBanner');
+  banner.innerHTML = `
+    <div class="install-banner" id="installBtn">
+      <span>📲</span>
+      <p><strong>Instalează aplicația</strong><br>Adaugă pe ecranul principal</p>
+      <span class="install-close" id="installClose">✕</span>
+    </div>
+  `;
+  document.getElementById('installBtn').addEventListener('click', async (ev) => {
+    if (ev.target.id === 'installClose') { banner.innerHTML=''; return; }
+    if (deferredPrompt) { deferredPrompt.prompt(); const r = await deferredPrompt.userChoice; deferredPrompt=null; banner.innerHTML=''; }
+  });
+});
+
+// ── INIT ─────────────────────────────────────────────
+load();
+selectedDate = toDateStr(new Date());
+renderCalendar();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
