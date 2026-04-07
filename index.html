@@ -466,6 +466,18 @@
   .avans-check.checked { background: var(--success); border-color: var(--success); color: white; }
   .avans-label { font-size: 14px; color: var(--text2); cursor: pointer; }
 
+  /* Global search bar */
+  .global-search-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    z-index: 50;
+    overflow-y: auto;
+    max-width: 430px;
+    margin: 0 auto;
+  }
+  .global-search-bar .search-box { margin-top: 60px !important; }
+
   /* Install banner */
   .install-banner {
     margin: 10px 16px 0;
@@ -499,6 +511,7 @@
       <div class="logo"><img src="icons/icon-192.png" style="height:36px;vertical-align:middle;margin-right:6px;border-radius:6px">MCM<span>HAPPY STUDIO</span></div>
       <div class="header-actions">
         <div class="icon-btn" id="searchToggleBtn" title="Caută">🔍</div>
+        <div class="icon-btn" id="backupBtn" title="Backup">💾</div>
         <div class="icon-btn add-btn" id="addBookingBtn" title="Rezervare nouă">+</div>
       </div>
     </div>
@@ -552,6 +565,16 @@
   <!-- UPCOMING VIEW -->
   <div class="view hidden" id="upcomingView">
     <div class="clients-list" id="upcomingList"></div>
+  </div>
+
+  <!-- GLOBAL SEARCH BAR -->
+  <div class="global-search-bar" id="globalSearchBar" style="display:none">
+    <div class="search-box" style="margin:10px 16px">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="globalSearchInput" placeholder="Caută în toate rezervările...">
+      <span id="closeSearchBtn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text3);cursor:pointer;font-size:16px">✕</span>
+    </div>
+    <div id="globalSearchResults" class="clients-list" style="padding-top:0"></div>
   </div>
 </div>
 
@@ -649,6 +672,39 @@
       <button class="btn-primary" id="saveBookingBtn">Salvează rezervarea</button>
       <button class="btn-danger" id="deleteBookingBtn" style="display:none">Șterge</button>
     </div>
+  </div>
+</div>
+
+<!-- BACKUP MODAL -->
+<div class="modal-overlay" id="backupModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span>💾 Backup & Restaurare</span>
+      <div class="close-btn" id="closeBackupModal">✕</div>
+    </div>
+    <div style="padding:0 20px">
+      <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px">
+        Exportă datele ca fișier JSON pentru a le salva în siguranță sau transferă-le pe alt dispozitiv.
+      </p>
+
+      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">📤 Export date</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px" id="exportInfo">Se calculează...</div>
+        <button class="btn-primary" id="exportJsonBtn">Descarcă backup (.json)</button>
+      </div>
+
+      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">📥 Import / Restaurare</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Selectează un fișier backup .json exportat anterior.</div>
+        <label style="display:block;width:100%;padding:12px;background:var(--bg4);border:1px dashed var(--border);border-radius:var(--radius-sm);text-align:center;cursor:pointer;font-size:13px;color:var(--text2)">
+          📂 Alege fișier .json
+          <input type="file" id="importFileInput" accept=".json" style="display:none">
+        </label>
+        <div id="importStatus" style="font-size:12px;margin-top:8px;color:var(--success);display:none"></div>
+      </div>
+    </div>
+    <div style="height:20px"></div>
   </div>
 </div>
 
@@ -1011,6 +1067,100 @@ function deleteBooking() {
   renderAll();
 }
 
+// ── GLOBAL SEARCH ────────────────────────────────────
+let searchOpen = false;
+
+function openSearch() {
+  searchOpen = true;
+  document.getElementById('globalSearchBar').style.display = 'block';
+  setTimeout(() => document.getElementById('globalSearchInput').focus(), 100);
+}
+
+function closeSearch() {
+  searchOpen = false;
+  document.getElementById('globalSearchBar').style.display = 'none';
+  document.getElementById('globalSearchInput').value = '';
+  document.getElementById('globalSearchResults').innerHTML = '';
+}
+
+function doGlobalSearch(q) {
+  const el = document.getElementById('globalSearchResults');
+  if (!q.trim()) { el.innerHTML = ''; return; }
+  const ql = q.toLowerCase();
+  const results = bookings.filter(b =>
+    b.name.toLowerCase().includes(ql) ||
+    (b.phone||'').includes(ql) ||
+    (b.email||'').toLowerCase().includes(ql) ||
+    (b.location||'').toLowerCase().includes(ql) ||
+    (b.notes||'').toLowerCase().includes(ql)
+  ).sort((a,b) => b.date.localeCompare(a.date));
+
+  if (!results.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon" style="font-size:32px">🔍</div><p>Niciun rezultat găsit</p></div>';
+    return;
+  }
+  el.innerHTML = results.map(b => `
+    <div class="client-card" onclick="closeSearch();openEdit('${b.id}')">
+      <div class="client-avatar" style="background:${typeColor(b.type)}22;border-color:${typeColor(b.type)}44;">
+        <span style="font-size:18px">${b.type==='video'?'🎬':b.type==='ambele'?'✨':'📷'}</span>
+      </div>
+      <div class="client-info">
+        <div class="client-name">${b.name}</div>
+        <div class="client-sub">${b.date} ${b.time?'· '+b.time:''} ${b.location?'· '+b.location:''}</div>
+      </div>
+      ${b.price ? `<div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── BACKUP / EXPORT / IMPORT ──────────────────────────
+function openBackup() {
+  const total = bookings.length;
+  const clients = new Set(bookings.map(b => b.name)).size;
+  document.getElementById('exportInfo').textContent = `${total} rezervări · ${clients} clienți`;
+  document.getElementById('importStatus').style.display = 'none';
+  document.getElementById('backupModal').classList.add('open');
+}
+
+function exportJson() {
+  const data = { version: 1, exportDate: new Date().toISOString(), bookings };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mcm-backup-${toDateStr(new Date())}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJson(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const imported = data.bookings || (Array.isArray(data) ? data : []);
+      if (!imported.length) throw new Error('Fișier gol');
+      // Merge: add only bookings with IDs that don't exist
+      let added = 0;
+      imported.forEach(b => {
+        if (!bookings.find(x => x.id === b.id)) { bookings.push(b); added++; }
+      });
+      save();
+      renderAll();
+      const status = document.getElementById('importStatus');
+      status.style.display = 'block';
+      status.style.color = 'var(--success)';
+      status.textContent = `✓ ${added} rezervări importate cu succes!`;
+    } catch(err) {
+      const status = document.getElementById('importStatus');
+      status.style.display = 'block';
+      status.style.color = 'var(--danger)';
+      status.textContent = '✗ Fișier invalid sau corupt.';
+    }
+  };
+  reader.readAsText(file);
+}
+
 // ── TABS ─────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
@@ -1059,6 +1209,16 @@ document.getElementById('fAdvance').addEventListener('input', updateRest);
 
 document.getElementById('avansCheckbox').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
 document.getElementById('avansLabel').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
+
+document.getElementById('searchToggleBtn').addEventListener('click', openSearch);
+document.getElementById('closeSearchBtn').addEventListener('click', closeSearch);
+document.getElementById('globalSearchInput').addEventListener('input', e => doGlobalSearch(e.target.value));
+
+document.getElementById('backupBtn').addEventListener('click', openBackup);
+document.getElementById('closeBackupModal').addEventListener('click', () => document.getElementById('backupModal').classList.remove('open'));
+document.getElementById('backupModal').addEventListener('click', e => { if (e.target === document.getElementById('backupModal')) document.getElementById('backupModal').classList.remove('open'); });
+document.getElementById('exportJsonBtn').addEventListener('click', exportJson);
+document.getElementById('importFileInput').addEventListener('change', e => { if (e.target.files[0]) importJson(e.target.files[0]); });
 
 document.getElementById('clientSearch').addEventListener('input', e => renderClients(e.target.value));
 
