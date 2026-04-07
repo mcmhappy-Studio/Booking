@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Studio Booking</title>
+<title>MCM Happy Studio</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f0f0f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Studio Booking">
+<meta name="apple-mobile-web-app-title" content="MCM Happy Studio">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -417,6 +417,39 @@
   }
   .btn-danger:hover { background: rgba(212,90,74,0.1); }
 
+  /* Currency btn - same style as type-btn */
+  .currency-btn {
+    flex: 1; padding: 10px 6px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text2);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .currency-btn:hover { border-color: var(--border); color: var(--text); }
+  .currency-btn.sel-lei { background: rgba(201,168,76,0.2); border-color: var(--gold); color: var(--gold); }
+  .currency-btn.sel-eur { background: rgba(107,159,212,0.2); border-color: #6b9fd4; color: #6b9fd4; }
+
+  /* Rest de incasat */
+  .rest-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 10px 20px 0;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .rest-label { font-size: 13px; color: var(--text2); }
+  .rest-value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; font-weight: 600; color: var(--gold);
+  }
+  .rest-value.negative { color: var(--danger); }
+
   /* Avans indicator */
   .avans-row {
     display: flex; align-items: center; gap: 10px;
@@ -463,7 +496,7 @@
 <div id="app">
   <div class="header">
     <div class="header-top">
-      <div class="logo">Studio<span>BOOKING</span></div>
+      <div class="logo"><img src="icons/icon-192.png" style="height:36px;vertical-align:middle;margin-right:6px;border-radius:6px">MCM<span>HAPPY STUDIO</span></div>
       <div class="header-actions">
         <div class="icon-btn" id="searchToggleBtn" title="Caută">🔍</div>
         <div class="icon-btn add-btn" id="addBookingBtn" title="Rezervare nouă">+</div>
@@ -578,15 +611,28 @@
 
     <div class="form-divider"></div>
 
+    <div class="form-group">
+      <label class="form-label">Monedă</label>
+      <div class="type-selector">
+        <div class="currency-btn" data-currency="lei">🇷🇴 Lei</div>
+        <div class="currency-btn" data-currency="eur">🇪🇺 Euro</div>
+      </div>
+    </div>
+
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Preț total (lei)</label>
-        <input type="number" class="form-input" id="fPrice" placeholder="0">
+        <label class="form-label" id="labelPrice">Preț total (lei)</label>
+        <input type="number" class="form-input" id="fPrice" placeholder="0" inputmode="decimal">
       </div>
       <div class="form-group">
-        <label class="form-label">Avans (lei)</label>
-        <input type="number" class="form-input" id="fAdvance" placeholder="0">
+        <label class="form-label" id="labelAdvance">Avans (lei)</label>
+        <input type="number" class="form-input" id="fAdvance" placeholder="0" inputmode="decimal">
       </div>
+    </div>
+
+    <div class="rest-row">
+      <span class="rest-label">Rest de încasat</span>
+      <span class="rest-value" id="restValue">— lei</span>
     </div>
 
     <div class="avans-row">
@@ -621,7 +667,34 @@ function load() {
 }
 function save() { localStorage.setItem(DB_KEY, JSON.stringify(bookings)); }
 
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+let selectedCurrency = 'lei';
+
+function updateCurrencyUI() {
+  document.querySelectorAll('.currency-btn').forEach(btn => {
+    btn.className = 'currency-btn' + (btn.dataset.currency === selectedCurrency ? ' sel-' + selectedCurrency : '');
+  });
+  const sym = selectedCurrency === 'eur' ? '€' : 'lei';
+  document.getElementById('labelPrice').textContent = `Preț total (${sym})`;
+  document.getElementById('labelAdvance').textContent = `Avans (${sym})`;
+  updateRest();
+}
+
+function updateRest() {
+  const price = parseFloat(document.getElementById('fPrice').value) || 0;
+  const advance = parseFloat(document.getElementById('fAdvance').value) || 0;
+  const rest = price - advance;
+  const sym = selectedCurrency === 'eur' ? '€' : 'lei';
+  const el = document.getElementById('restValue');
+  if (price === 0) {
+    el.textContent = `— ${sym}`;
+    el.className = 'rest-value';
+  } else {
+    el.textContent = (selectedCurrency === 'eur' ? '€' : '') + rest.toLocaleString('ro-RO', {minimumFractionDigits: 0, maximumFractionDigits: 2}) + (selectedCurrency === 'lei' ? ' lei' : '');
+    el.className = 'rest-value' + (rest < 0 ? ' negative' : '');
+  }
+}
+
+
 
 function formatDate(d) {
   const date = new Date(d + 'T00:00:00');
@@ -736,7 +809,7 @@ function renderDayDetail() {
         <div class="booking-name">${b.name}</div>
         <div class="booking-meta">${b.time ? b.time + ' · ' : ''}${typeLabel(b.type)}${b.location ? ' · ' + b.location : ''}</div>
       </div>
-      ${b.price ? `<div class="booking-price">${Number(b.price).toLocaleString('ro-RO')} lei</div>` : ''}
+      ${b.price ? `<div class="booking-price">${Number(b.price).toLocaleString('ro-RO')} ${b.currency === 'eur' ? '€' : 'lei'}</div>` : ''}
     </div>
   `).join('');
 }
@@ -755,11 +828,16 @@ function renderClients(filter='') {
   list.sort((a,b) => a.name.localeCompare(b.name, 'ro'));
 
   // stats
-  const totalRev = bookings.reduce((s,b) => s+(Number(b.price)||0), 0);
+  const totalRevLei = bookings.filter(b => b.currency !== 'eur').reduce((s,b) => s+(Number(b.price)||0), 0);
+  const totalRevEur = bookings.filter(b => b.currency === 'eur').reduce((s,b) => s+(Number(b.price)||0), 0);
+  let revDisplay = '';
+  if (totalRevLei > 0 && totalRevEur > 0) revDisplay = `${(totalRevLei/1000).toFixed(1)}k+`;
+  else if (totalRevEur > 0) revDisplay = `${totalRevEur.toLocaleString('ro-RO')}€`;
+  else revDisplay = `${(totalRevLei/1000).toFixed(1)}k`;
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-card"><div class="stat-val">${Object.keys(clients).length}</div><div class="stat-lbl">Clienți</div></div>
     <div class="stat-card"><div class="stat-val">${bookings.length}</div><div class="stat-lbl">Rezervări</div></div>
-    <div class="stat-card"><div class="stat-val">${(totalRev/1000).toFixed(1)}k</div><div class="stat-lbl">Lei total</div></div>
+    <div class="stat-card"><div class="stat-val">${revDisplay}</div><div class="stat-lbl">Venituri</div></div>
   `;
 
   const el = document.getElementById('clientsList');
@@ -820,7 +898,7 @@ function renderUpcoming(filterName='') {
           <div class="client-name">${b.name}</div>
           <div class="client-sub">${b.time||'—'} ${b.location?'· '+b.location:''}</div>
         </div>
-        ${b.price ? `<div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')}<span style="font-size:11px;color:var(--text3)"> lei</span></div>` : ''}
+        ${b.price ? `<div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')}<span style="font-size:11px;color:var(--text3)"> ${b.currency === 'eur' ? '€' : 'lei'}</span></div>` : ''}
       </div>
     `;
   });
@@ -843,7 +921,9 @@ function openAdd(dateStr) {
   document.getElementById('fPrice').value = '';
   document.getElementById('fAdvance').value = '';
   document.getElementById('fNotes').value = '';
+  selectedCurrency = 'lei';
   updateTypeUI();
+  updateCurrencyUI();
   updateAvansUI();
   openModal();
 }
@@ -865,7 +945,9 @@ function openEdit(id) {
   document.getElementById('fPrice').value = b.price || '';
   document.getElementById('fAdvance').value = b.advance || '';
   document.getElementById('fNotes').value = b.notes || '';
+  selectedCurrency = b.currency || 'lei';
   updateTypeUI();
+  updateCurrencyUI();
   updateAvansUI();
   openModal();
 }
@@ -901,6 +983,7 @@ function saveBooking() {
     location: document.getElementById('fLocation').value.trim(),
     price: document.getElementById('fPrice').value,
     advance: document.getElementById('fAdvance').value,
+    currency: selectedCurrency,
     avansIncasat: avansChecked,
     notes: document.getElementById('fNotes').value.trim(),
   };
@@ -966,6 +1049,13 @@ document.getElementById('deleteBookingBtn').addEventListener('click', deleteBook
 document.querySelectorAll('.type-btn').forEach(btn => {
   btn.addEventListener('click', () => { selectedType = btn.dataset.type; updateTypeUI(); });
 });
+
+document.querySelectorAll('.currency-btn').forEach(btn => {
+  btn.addEventListener('click', () => { selectedCurrency = btn.dataset.currency; updateCurrencyUI(); });
+});
+
+document.getElementById('fPrice').addEventListener('input', updateRest);
+document.getElementById('fAdvance').addEventListener('input', updateRest);
 
 document.getElementById('avansCheckbox').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
 document.getElementById('avansLabel').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
