@@ -11,6 +11,12 @@
 <meta name="apple-mobile-web-app-title" content="MCM Happy Studio">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase SDKs (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -42,6 +48,118 @@
     -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
   }
+
+  /* ── LOGIN SCREEN ─────────────────────────────────── */
+  #loginScreen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+  }
+  .login-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 500;
+    color: var(--gold2);
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .login-sub {
+    font-size: 12px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+  }
+  .login-box {
+    width: 100%;
+    max-width: 360px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+  }
+  .login-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+  .login-field { margin-bottom: 14px; }
+  .login-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .login-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-input:focus { border-color: var(--gold); }
+  .login-input::placeholder { color: var(--text3); }
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--gold);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+    letter-spacing: 0.03em;
+  }
+  .login-btn:hover { background: var(--gold2); }
+  .login-btn:disabled { opacity: 0.6; cursor: default; }
+  .login-error {
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 10px;
+    text-align: center;
+    display: none;
+  }
+
+  /* ── LOADING ─────────────────────────────────────── */
+  #loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   #app {
     max-width: 430px;
@@ -136,7 +254,6 @@
     font-size: 14px; transition: all 0.2s;
   }
   .cal-nav-btn:hover { color: var(--gold); border-color: var(--border); }
-
   .cal-grid { padding: 0 12px; }
   .cal-days-header {
     display: grid; grid-template-columns: repeat(7, 1fr);
@@ -160,23 +277,14 @@
   .cal-cell:hover:not(.empty):not(.today-cell) { background: var(--bg3); }
   .cal-cell.empty { cursor: default; }
   .cal-cell.other-month .cal-num { color: var(--text3); opacity: 0.4; }
-  .cal-num {
-    font-size: 14px; font-weight: 400; color: var(--text2);
-    line-height: 1;
-  }
+  .cal-num { font-size: 14px; font-weight: 400; color: var(--text2); line-height: 1; }
   .cal-cell.today-cell { background: var(--gold-dim); }
   .cal-cell.today-cell .cal-num { color: var(--gold); font-weight: 500; }
   .cal-cell.selected-day { background: var(--gold); }
   .cal-cell.selected-day .cal-num { color: var(--bg); font-weight: 500; }
   .cal-cell.selected-day .cal-dots span { background: var(--bg) !important; }
-
-  .cal-dots {
-    display: flex; gap: 2px; margin-top: 2px; height: 5px;
-    align-items: center;
-  }
-  .cal-dots span {
-    width: 4px; height: 4px; border-radius: 50%;
-  }
+  .cal-dots { display: flex; gap: 2px; margin-top: 2px; height: 5px; align-items: center; }
+  .cal-dots span { width: 4px; height: 4px; border-radius: 50%; }
   .dot-foto { background: var(--gold); }
   .dot-video { background: #6b9fd4; }
   .dot-ambele { background: #8a6bc4; }
@@ -197,12 +305,8 @@
     display: flex; align-items: center; justify-content: space-between;
   }
   .day-detail-header span { font-size: 12px; color: var(--text3); font-family: 'DM Sans', sans-serif; }
-  .no-bookings {
-    padding: 24px 16px;
-    text-align: center; color: var(--text3); font-size: 13px;
-  }
+  .no-bookings { padding: 24px 16px; text-align: center; color: var(--text3); font-size: 13px; }
 
-  /* BOOKING CARD (in day detail) */
   .booking-item {
     padding: 12px 16px;
     border-bottom: 1px solid var(--border2);
@@ -212,20 +316,11 @@
   }
   .booking-item:last-child { border-bottom: none; }
   .booking-item:hover { background: var(--bg3); }
-  .booking-color-bar {
-    width: 3px; height: 40px; border-radius: 2px; flex-shrink: 0;
-  }
+  .booking-color-bar { width: 3px; height: 40px; border-radius: 2px; flex-shrink: 0; }
   .booking-info { flex: 1; min-width: 0; }
-  .booking-name {
-    font-weight: 500; font-size: 14px; color: var(--text);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
+  .booking-name { font-weight: 500; font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .booking-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
-  .booking-price {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 16px; color: var(--gold); font-weight: 500;
-    flex-shrink: 0;
-  }
+  .booking-price { font-family: 'Cormorant Garamond', serif; font-size: 16px; color: var(--gold); font-weight: 500; flex-shrink: 0; }
 
   /* CLIENTS VIEW */
   .clients-list { padding: 12px 16px; }
@@ -248,26 +343,17 @@
   .client-info { flex: 1; min-width: 0; }
   .client-name { font-weight: 500; font-size: 14px; color: var(--text); }
   .client-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
-  .client-badge {
-    font-size: 11px; font-weight: 500; padding: 3px 8px;
-    border-radius: 20px; flex-shrink: 0;
-  }
+  .client-badge { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; }
   .badge-foto { background: rgba(201,168,76,0.15); color: var(--gold); }
   .badge-video { background: rgba(107,159,212,0.15); color: #6b9fd4; }
   .badge-ambele { background: rgba(138,107,196,0.15); color: #8a6bc4; }
 
-  .empty-state {
-    text-align: center; padding: 60px 20px;
-    color: var(--text3);
-  }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
   .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
   .empty-state p { font-size: 14px; line-height: 1.6; }
 
   /* SEARCH */
-  .search-box {
-    margin: 12px 16px 0;
-    position: relative;
-  }
+  .search-box { margin: 12px 16px 0; position: relative; }
   .search-box input {
     width: 100%;
     background: var(--bg2);
@@ -282,25 +368,12 @@
   }
   .search-box input:focus { border-color: var(--border); }
   .search-box input::placeholder { color: var(--text3); }
-  .search-icon {
-    position: absolute; left: 12px; top: 50%;
-    transform: translateY(-50%); color: var(--text3); font-size: 15px;
-  }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 15px; }
 
   /* STATS */
-  .stats-row {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px; padding: 14px 16px 0;
-  }
-  .stat-card {
-    background: var(--bg2); border: 1px solid var(--border2);
-    border-radius: var(--radius-sm); padding: 12px;
-    text-align: center;
-  }
-  .stat-val {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 22px; font-weight: 600; color: var(--gold);
-  }
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 14px 16px 0; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .stat-val { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: var(--gold); }
   .stat-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
 
   /* MODAL */
@@ -325,11 +398,7 @@
     overflow-y: auto;
   }
   .modal-overlay.open .modal { transform: translateY(0); }
-  .modal-handle {
-    width: 36px; height: 4px;
-    background: var(--bg4); border-radius: 2px;
-    margin: 12px auto 0;
-  }
+  .modal-handle { width: 36px; height: 4px; background: var(--bg4); border-radius: 2px; margin: 12px auto 0; }
   .modal-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: 20px; font-weight: 500;
@@ -344,13 +413,8 @@
     cursor: pointer; color: var(--text2); font-size: 14px;
   }
   .modal-title .close-btn:hover { color: var(--text); }
-
   .form-group { padding: 8px 20px 0; }
-  .form-label {
-    font-size: 11px; font-weight: 500; color: var(--text3);
-    text-transform: uppercase; letter-spacing: 0.08em;
-    margin-bottom: 6px; display: block;
-  }
+  .form-label { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; display: block; }
   .form-input, .form-select, .form-textarea {
     width: 100%;
     background: var(--bg3); border: 1px solid var(--border2);
@@ -363,19 +427,14 @@
     transition: border-color 0.2s;
     -webkit-appearance: none;
   }
-  .form-input:focus, .form-select:focus, .form-textarea:focus {
-    border-color: var(--gold);
-    background: var(--bg4);
-  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--gold); background: var(--bg4); }
   .form-input::placeholder, .form-textarea::placeholder { color: var(--text3); }
   .form-select { cursor: pointer; }
   .form-select option { background: var(--bg2); }
   .form-textarea { resize: none; height: 80px; }
-
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 20px 0; }
   .form-row .form-group { padding: 0; }
 
-  /* Type selector */
   .type-selector { display: flex; gap: 8px; }
   .type-btn {
     flex: 1; padding: 10px 6px;
@@ -385,16 +444,13 @@
     color: var(--text2);
     font-family: 'DM Sans', sans-serif;
     font-size: 13px; font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
+    cursor: pointer; transition: all 0.15s; text-align: center;
   }
   .type-btn:hover { border-color: var(--border); color: var(--text); }
   .type-btn.sel-foto { background: rgba(201,168,76,0.2); border-color: var(--gold); color: var(--gold); }
   .type-btn.sel-video { background: rgba(107,159,212,0.2); border-color: #6b9fd4; color: #6b9fd4; }
   .type-btn.sel-ambele { background: rgba(138,107,196,0.2); border-color: #8a6bc4; color: #8a6bc4; }
 
-  /* Action buttons */
   .modal-actions { display: flex; gap: 10px; padding: 20px 20px 0; }
   .btn-primary {
     flex: 1; padding: 14px;
@@ -402,10 +458,10 @@
     border: none; border-radius: var(--radius-sm);
     font-family: 'DM Sans', sans-serif;
     font-size: 14px; font-weight: 500;
-    cursor: pointer; transition: all 0.2s;
-    letter-spacing: 0.03em;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em;
   }
   .btn-primary:hover { background: var(--gold2); }
+  .btn-primary:disabled { opacity: 0.6; cursor: default; }
   .btn-danger {
     padding: 14px 18px;
     background: transparent; color: var(--danger);
@@ -416,8 +472,8 @@
     cursor: pointer; transition: all 0.2s;
   }
   .btn-danger:hover { background: rgba(212,90,74,0.1); }
+  .btn-danger:disabled { opacity: 0.6; cursor: default; }
 
-  /* Currency btn - same style as type-btn */
   .currency-btn {
     flex: 1; padding: 10px 6px;
     border-radius: var(--radius-sm);
@@ -426,15 +482,12 @@
     color: var(--text2);
     font-family: 'DM Sans', sans-serif;
     font-size: 13px; font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
+    cursor: pointer; transition: all 0.15s; text-align: center;
   }
   .currency-btn:hover { border-color: var(--border); color: var(--text); }
   .currency-btn.sel-lei { background: rgba(201,168,76,0.2); border-color: var(--gold); color: var(--gold); }
   .currency-btn.sel-eur { background: rgba(107,159,212,0.2); border-color: #6b9fd4; color: #6b9fd4; }
 
-  /* Rest de incasat */
   .rest-row {
     display: flex; align-items: center; justify-content: space-between;
     margin: 10px 20px 0;
@@ -444,17 +497,10 @@
     border-radius: var(--radius-sm);
   }
   .rest-label { font-size: 13px; color: var(--text2); }
-  .rest-value {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 18px; font-weight: 600; color: var(--gold);
-  }
+  .rest-value { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--gold); }
   .rest-value.negative { color: var(--danger); }
 
-  /* Avans indicator */
-  .avans-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 20px 0;
-  }
+  .avans-row { display: flex; align-items: center; gap: 10px; padding: 8px 20px 0; }
   .avans-check {
     width: 20px; height: 20px;
     border: 1.5px solid var(--border2);
@@ -466,7 +512,6 @@
   .avans-check.checked { background: var(--success); border-color: var(--success); color: white; }
   .avans-label { font-size: 14px; color: var(--text2); cursor: pointer; }
 
-  /* Global search bar */
   .global-search-bar {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -476,9 +521,20 @@
     max-width: 430px;
     margin: 0 auto;
   }
-  .global-search-bar .search-box { margin-top: 60px !important; }
 
-  /* Install banner */
+  /* Sync dot */
+  .sync-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    display: inline-block;
+    margin-left: 6px;
+    vertical-align: middle;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .sync-dot.visible { opacity: 1; }
+
   .install-banner {
     margin: 10px 16px 0;
     background: var(--gold-dim);
@@ -492,26 +548,52 @@
   .install-banner span { font-size: 16px; flex-shrink: 0; }
   .install-close { margin-left: auto; color: var(--text3); font-size: 16px; }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-  /* Divider */
-  .form-divider {
-    margin: 14px 20px 0;
-    height: 1px; background: var(--border2);
-  }
+  .form-divider { margin: 14px 20px 0; height: 1px; background: var(--border2); }
 </style>
 </head>
 <body>
-<div id="app">
+
+<!-- LOADING -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text3)">Se conectează...</div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" style="display:none">
+  <div class="login-logo">MCM</div>
+  <div class="login-sub">Happy Studio</div>
+  <div class="login-box">
+    <div class="login-title">Intră în cont</div>
+    <div class="login-field">
+      <label class="login-label">Email</label>
+      <input type="email" class="login-input" id="loginEmail" placeholder="email@studio.ro" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label class="login-label">Parolă</label>
+      <input type="password" class="login-input" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn">Intră</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
   <div class="header">
     <div class="header-top">
-      <div class="logo"><img src="icons/icon-192.png" style="height:36px;vertical-align:middle;margin-right:6px;border-radius:6px">MCM<span>HAPPY STUDIO</span></div>
+      <div class="logo">
+        <img src="icons/icon-192.png" style="height:36px;vertical-align:middle;margin-right:6px;border-radius:6px">
+        MCM<span>HAPPY STUDIO</span>
+        <span class="sync-dot" id="syncDot" title="Sincronizat"></span>
+      </div>
       <div class="header-actions">
         <div class="icon-btn" id="searchToggleBtn" title="Caută">🔍</div>
         <div class="icon-btn" id="backupBtn" title="Backup">💾</div>
+        <div class="icon-btn" id="logoutBtn" title="Ieși din cont" style="font-size:14px">🚪</div>
         <div class="icon-btn add-btn" id="addBookingBtn" title="Rezervare nouă">+</div>
       </div>
     </div>
@@ -523,7 +605,6 @@
     <div class="tab" data-tab="upcoming">⏰ Urmează</div>
   </div>
 
-  <!-- CALENDAR VIEW -->
   <div class="view" id="calendarView">
     <div class="cal-nav">
       <div class="cal-nav-btn" id="prevMonth">&#8592;</div>
@@ -552,7 +633,6 @@
     <div id="installBanner"></div>
   </div>
 
-  <!-- CLIENTS VIEW -->
   <div class="view hidden" id="clientsView">
     <div class="search-box">
       <span class="search-icon">🔍</span>
@@ -562,12 +642,10 @@
     <div class="clients-list" id="clientsList"></div>
   </div>
 
-  <!-- UPCOMING VIEW -->
   <div class="view hidden" id="upcomingView">
     <div class="clients-list" id="upcomingList"></div>
   </div>
 
-  <!-- GLOBAL SEARCH BAR -->
   <div class="global-search-bar" id="globalSearchBar" style="display:none">
     <div class="search-box" style="margin:10px 16px">
       <span class="search-icon">🔍</span>
@@ -578,7 +656,7 @@
   </div>
 </div>
 
-<!-- ADD/EDIT MODAL -->
+<!-- BOOKING MODAL -->
 <div class="modal-overlay" id="bookingModal">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -586,7 +664,6 @@
       <span id="modalTitle">Rezervare nouă</span>
       <div class="close-btn" id="closeModal">✕</div>
     </div>
-
     <div class="form-group">
       <label class="form-label">Tip ședință</label>
       <div class="type-selector">
@@ -595,14 +672,11 @@
         <div class="type-btn" data-type="ambele">✨ Ambele</div>
       </div>
     </div>
-
     <div class="form-divider"></div>
-
     <div class="form-group">
       <label class="form-label">Nume client *</label>
       <input type="text" class="form-input" id="fName" placeholder="ex: Ana Ionescu">
     </div>
-
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Telefon</label>
@@ -613,9 +687,7 @@
         <input type="email" class="form-input" id="fEmail" placeholder="email@...">
       </div>
     </div>
-
     <div class="form-divider"></div>
-
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Data *</label>
@@ -626,14 +698,11 @@
         <input type="time" class="form-input" id="fTime">
       </div>
     </div>
-
     <div class="form-group">
       <label class="form-label">Locație</label>
       <input type="text" class="form-input" id="fLocation" placeholder="ex: Studio / Parcul Herăstrău / ...">
     </div>
-
     <div class="form-divider"></div>
-
     <div class="form-group">
       <label class="form-label">Monedă</label>
       <div class="type-selector">
@@ -641,7 +710,6 @@
         <div class="currency-btn" data-currency="eur">🇪🇺 Euro</div>
       </div>
     </div>
-
     <div class="form-row">
       <div class="form-group">
         <label class="form-label" id="labelPrice">Preț total (lei)</label>
@@ -652,22 +720,18 @@
         <input type="number" class="form-input" id="fAdvance" placeholder="0" inputmode="decimal">
       </div>
     </div>
-
     <div class="rest-row">
       <span class="rest-label">Rest de încasat</span>
       <span class="rest-value" id="restValue">— lei</span>
     </div>
-
     <div class="avans-row">
       <div class="avans-check" id="avansCheckbox"></div>
       <label class="avans-label" id="avansLabel">Avans încasat</label>
     </div>
-
     <div class="form-group" style="margin-top:8px">
       <label class="form-label">Notițe</label>
       <textarea class="form-textarea form-input" id="fNotes" placeholder="Detalii suplimentare..."></textarea>
     </div>
-
     <div class="modal-actions">
       <button class="btn-primary" id="saveBookingBtn">Salvează rezervarea</button>
       <button class="btn-danger" id="deleteBookingBtn" style="display:none">Șterge</button>
@@ -687,13 +751,11 @@
       <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px">
         Exportă datele ca fișier JSON pentru a le salva în siguranță sau transferă-le pe alt dispozitiv.
       </p>
-
       <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
         <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">📤 Export date</div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:10px" id="exportInfo">Se calculează...</div>
         <button class="btn-primary" id="exportJsonBtn">Descarcă backup (.json)</button>
       </div>
-
       <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px">
         <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">📥 Import / Restaurare</div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Selectează un fișier backup .json exportat anterior.</div>
@@ -701,7 +763,7 @@
           📂 Alege fișier .json
           <input type="file" id="importFileInput" accept=".json" style="display:none">
         </label>
-        <div id="importStatus" style="font-size:12px;margin-top:8px;color:var(--success);display:none"></div>
+        <div id="importStatus" style="font-size:12px;margin-top:8px;display:none"></div>
       </div>
     </div>
     <div style="height:20px"></div>
@@ -709,21 +771,97 @@
 </div>
 
 <script>
-const DB_KEY = 'studio_bookings_v1';
+// ── FIREBASE ──────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDtHTw_Wqx5O_hb8pGxSrmqDg6hlcuPOQM",
+  authDomain: "mcm-happy-studio-booking.firebaseapp.com",
+  projectId: "mcm-happy-studio-booking",
+  storageBucket: "mcm-happy-studio-booking.firebasestorage.app",
+  messagingSenderId: "80733933841",
+  appId: "1:80733933841:web:bbe61a8c603db7950d3cb0",
+  measurementId: "G-H275MKX3VB"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ── STATE ─────────────────────────────────────────────
 let bookings = [];
 let currentDate = new Date();
 let selectedDate = null;
 let editingId = null;
 let selectedType = null;
 let avansChecked = false;
-let deferredPrompt = null;
-
-function load() {
-  try { bookings = JSON.parse(localStorage.getItem(DB_KEY)) || []; } catch { bookings = []; }
-}
-function save() { localStorage.setItem(DB_KEY, JSON.stringify(bookings)); }
-
 let selectedCurrency = 'lei';
+let deferredPrompt = null;
+let unsubscribeSnapshot = null;
+
+// ── AUTH ──────────────────────────────────────────────
+auth.onAuthStateChanged(user => {
+  document.getElementById('loadingOverlay').style.display = 'none';
+  if (user) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    startSync();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    bookings = [];
+  }
+});
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.style.display = 'none';
+  if (!email || !password) { showLoginError('Completează email și parola.'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Se conectează...';
+  auth.signInWithEmailAndPassword(email, password).catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Intră';
+    let msg = 'Email sau parolă incorectă.';
+    if (err.code === 'auth/too-many-requests') msg = 'Prea multe încercări. Încearcă mai târziu.';
+    if (err.code === 'auth/network-request-failed') msg = 'Eroare de rețea. Verifică conexiunea.';
+    showLoginError(msg);
+  });
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  if (confirm('Ieși din cont?')) auth.signOut();
+});
+
+// ── FIRESTORE SYNC ─────────────────────────────────────
+function startSync() {
+  selectedDate = toDateStr(new Date());
+  renderCalendar();
+  unsubscribeSnapshot = db.collection('bookings').onSnapshot(snapshot => {
+    bookings = snapshot.docs.map(doc => doc.data());
+    renderAll();
+    flashSync();
+  }, err => console.error('Firestore:', err));
+}
+
+function flashSync() {
+  const dot = document.getElementById('syncDot');
+  dot.classList.add('visible');
+  setTimeout(() => dot.classList.remove('visible'), 1500);
+}
+
+// ── HELPERS ───────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
 function updateCurrencyUI() {
   document.querySelectorAll('.currency-btn').forEach(btn => {
@@ -745,97 +883,76 @@ function updateRest() {
     el.textContent = `— ${sym}`;
     el.className = 'rest-value';
   } else {
-    el.textContent = (selectedCurrency === 'eur' ? '€' : '') + rest.toLocaleString('ro-RO', {minimumFractionDigits: 0, maximumFractionDigits: 2}) + (selectedCurrency === 'lei' ? ' lei' : '');
+    el.textContent = (selectedCurrency === 'eur' ? '€' : '') + rest.toLocaleString('ro-RO', {minimumFractionDigits:0,maximumFractionDigits:2}) + (selectedCurrency === 'lei' ? ' lei' : '');
     el.className = 'rest-value' + (rest < 0 ? ' negative' : '');
   }
 }
 
-
-
 function formatDate(d) {
-  const date = new Date(d + 'T00:00:00');
-  return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(d + 'T00:00:00').toLocaleDateString('ro-RO', {day:'numeric',month:'long',year:'numeric'});
 }
-
+function toDateStr(d) {
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function typeColor(t) {
-  if (t === 'foto') return 'var(--gold)';
-  if (t === 'video') return '#6b9fd4';
+  if (t==='foto') return 'var(--gold)';
+  if (t==='video') return '#6b9fd4';
   return '#8a6bc4';
 }
-
 function typeLabel(t) {
-  if (t === 'foto') return '📷 Foto';
-  if (t === 'video') return '🎬 Video';
+  if (t==='foto') return '📷 Foto';
+  if (t==='video') return '🎬 Video';
   return '✨ Foto+Video';
 }
 
-// ── CALENDAR ────────────────────────────────────────
+// ── CALENDAR ──────────────────────────────────────────
 function renderCalendar() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const months = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
   document.getElementById('calMonthTitle').textContent = months[month] + ' ' + year;
-
   const cells = document.getElementById('calCells');
   cells.innerHTML = '';
-
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  let startDow = firstDay.getDay(); // 0=Sun
-  startDow = startDow === 0 ? 6 : startDow - 1; // Mon=0
-
-  const today = new Date();
-  const todayStr = toDateStr(today);
-
-  // prev month days
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+  const todayStr = toDateStr(new Date());
   for (let i = 0; i < startDow; i++) {
     const d = new Date(year, month, -startDow + i + 1);
-    const ds = toDateStr(d);
-    cells.appendChild(makeCell(d.getDate(), ds, true));
+    cells.appendChild(makeCell(d.getDate(), toDateStr(d), true));
   }
-  // current month
   for (let d = 1; d <= lastDay.getDate(); d++) {
     const dt = new Date(year, month, d);
     const ds = toDateStr(dt);
-    cells.appendChild(makeCell(d, ds, false, ds === todayStr, ds === selectedDate));
+    cells.appendChild(makeCell(d, ds, false, ds===todayStr, ds===selectedDate));
   }
-  // fill rest
   const total = startDow + lastDay.getDate();
   const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
   for (let i = 1; i <= rem; i++) {
-    const dt = new Date(year, month + 1, i);
-    cells.appendChild(makeCell(i, toDateStr(dt), true));
+    cells.appendChild(makeCell(i, toDateStr(new Date(year, month+1, i)), true));
   }
-
   renderDayDetail();
-}
-
-function toDateStr(d) {
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
 function makeCell(num, ds, otherMonth, isToday, isSelected) {
   const div = document.createElement('div');
-  div.className = 'cal-cell' + (otherMonth?' other-month':'') + (isToday?' today-cell':'') + (isSelected?' selected-day':'');
-
+  div.className = 'cal-cell'+(otherMonth?' other-month':'')+(isToday?' today-cell':'')+(isSelected?' selected-day':'');
   const numEl = document.createElement('div');
   numEl.className = 'cal-num';
   numEl.textContent = num;
   div.appendChild(numEl);
-
   const dayBookings = bookings.filter(b => b.date === ds);
   if (dayBookings.length > 0) {
     const dots = document.createElement('div');
     dots.className = 'cal-dots';
-    const types = [...new Set(dayBookings.map(b => b.type))].slice(0,3);
-    types.forEach(t => {
+    [...new Set(dayBookings.map(b => b.type))].slice(0,3).forEach(t => {
       const s = document.createElement('span');
-      s.className = 'dot-' + (t||'foto');
+      s.className = 'dot-'+(t||'foto');
       dots.appendChild(s);
     });
     div.appendChild(dots);
   }
-
   if (!otherMonth) {
     div.addEventListener('click', () => {
       selectedDate = ds;
@@ -849,64 +966,49 @@ function makeCell(num, ds, otherMonth, isToday, isSelected) {
 function renderDayDetail() {
   const det = document.getElementById('dayDetail');
   if (!selectedDate) { det.style.display = 'none'; return; }
-  const dayBookings = bookings.filter(b => b.date === selectedDate).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  const dayBookings = bookings.filter(b => b.date===selectedDate).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   det.style.display = '';
   document.getElementById('dayDetailTitle').textContent = formatDate(selectedDate);
-  document.getElementById('dayDetailCount').textContent = dayBookings.length ? dayBookings.length + ' rezervări' : '';
+  document.getElementById('dayDetailCount').textContent = dayBookings.length ? dayBookings.length+' rezervări' : '';
   const items = document.getElementById('dayDetailItems');
-  if (!dayBookings.length) {
-    items.innerHTML = '<div class="no-bookings">Nicio rezervare în această zi</div>';
-    return;
-  }
+  if (!dayBookings.length) { items.innerHTML = '<div class="no-bookings">Nicio rezervare în această zi</div>'; return; }
   items.innerHTML = dayBookings.map(b => `
     <div class="booking-item" onclick="openEdit('${b.id}')">
       <div class="booking-color-bar" style="background:${typeColor(b.type)}"></div>
       <div class="booking-info">
         <div class="booking-name">${b.name}</div>
-        <div class="booking-meta">${b.time ? b.time + ' · ' : ''}${typeLabel(b.type)}${b.location ? ' · ' + b.location : ''}</div>
+        <div class="booking-meta">${b.time?b.time+' · ':''}${typeLabel(b.type)}${b.location?' · '+b.location:''}</div>
       </div>
-      ${b.price ? `<div class="booking-price">${Number(b.price).toLocaleString('ro-RO')} ${b.currency === 'eur' ? '€' : 'lei'}</div>` : ''}
+      ${b.price?`<div class="booking-price">${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}</div>`:''}
     </div>
   `).join('');
 }
 
-// ── CLIENTS ─────────────────────────────────────────
+// ── CLIENTS ───────────────────────────────────────────
 function renderClients(filter='') {
   const q = filter.toLowerCase();
   const clients = {};
   bookings.forEach(b => {
-    if (!clients[b.name]) clients[b.name] = { name:b.name, phone:b.phone, email:b.email, bookings:[], totalRev:0 };
+    if (!clients[b.name]) clients[b.name] = {name:b.name,phone:b.phone,email:b.email,bookings:[],totalRev:0};
     clients[b.name].bookings.push(b);
     clients[b.name].totalRev += Number(b.price)||0;
   });
-
-  let list = Object.values(clients).filter(c => !q || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.email||'').toLowerCase().includes(q));
-  list.sort((a,b) => a.name.localeCompare(b.name, 'ro'));
-
-  // stats
-  const totalRevLei = bookings.filter(b => b.currency !== 'eur').reduce((s,b) => s+(Number(b.price)||0), 0);
-  const totalRevEur = bookings.filter(b => b.currency === 'eur').reduce((s,b) => s+(Number(b.price)||0), 0);
-  let revDisplay = '';
-  if (totalRevLei > 0 && totalRevEur > 0) revDisplay = `${(totalRevLei/1000).toFixed(1)}k+`;
-  else if (totalRevEur > 0) revDisplay = `${totalRevEur.toLocaleString('ro-RO')}€`;
-  else revDisplay = `${(totalRevLei/1000).toFixed(1)}k`;
+  let list = Object.values(clients).filter(c => !q||c.name.toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.email||'').toLowerCase().includes(q));
+  list.sort((a,b) => a.name.localeCompare(b.name,'ro'));
+  const totalRevLei = bookings.filter(b=>b.currency!=='eur').reduce((s,b)=>s+(Number(b.price)||0),0);
+  const totalRevEur = bookings.filter(b=>b.currency==='eur').reduce((s,b)=>s+(Number(b.price)||0),0);
+  let revDisplay = totalRevLei>0&&totalRevEur>0 ? `${(totalRevLei/1000).toFixed(1)}k+` : totalRevEur>0 ? `${totalRevEur.toLocaleString('ro-RO')}€` : `${(totalRevLei/1000).toFixed(1)}k`;
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-card"><div class="stat-val">${Object.keys(clients).length}</div><div class="stat-lbl">Clienți</div></div>
     <div class="stat-card"><div class="stat-val">${bookings.length}</div><div class="stat-lbl">Rezervări</div></div>
     <div class="stat-card"><div class="stat-val">${revDisplay}</div><div class="stat-lbl">Venituri</div></div>
   `;
-
   const el = document.getElementById('clientsList');
-  if (!list.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📷</div><p>Niciun client încă.<br>Adaugă prima rezervare!</p></div>';
-    return;
-  }
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📷</div><p>Niciun client încă.<br>Adaugă prima rezervare!</p></div>'; return; }
   el.innerHTML = list.map(c => {
     const initials = c.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const types = [...new Set(c.bookings.map(b=>b.type))];
-    const lastB = c.bookings.sort((a,b)=>b.date.localeCompare(a.date))[0];
-    const mainType = types[0] || 'foto';
-    const badgeClass = types.length>1 ? 'ambele' : mainType;
+    const badgeClass = types.length>1?'ambele':types[0]||'foto';
     return `
       <div class="client-card" onclick="filterByClient('${c.name.replace(/'/g,"\\'")}')">
         <div class="client-avatar">${initials}</div>
@@ -920,91 +1022,76 @@ function renderClients(filter='') {
   }).join('');
 }
 
-function filterByClient(name) {
-  switchTab('upcoming');
-  renderUpcoming(name);
-}
+function filterByClient(name) { switchTab('upcoming'); renderUpcoming(name); }
 
-// ── UPCOMING ─────────────────────────────────────────
+// ── UPCOMING ──────────────────────────────────────────
 function renderUpcoming(filterName='') {
   const today = toDateStr(new Date());
-  let list = bookings.filter(b => b.date >= today);
-  if (filterName) list = bookings.filter(b => b.name === filterName);
-  list.sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''));
-
+  let list = filterName ? bookings.filter(b=>b.name===filterName) : bookings.filter(b=>b.date>=today);
+  list.sort((a,b) => a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   const el = document.getElementById('upcomingList');
   if (!list.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⏰</div><p>${filterName ? 'Nicio rezervare pentru ' + filterName : 'Nicio rezervare viitoare'}</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⏰</div><p>${filterName?'Nicio rezervare pentru '+filterName:'Nicio rezervare viitoare'}</p></div>`;
     return;
   }
-
-  let html = '';
-  let lastDate = '';
+  let html='', lastDate='';
   list.forEach(b => {
-    if (b.date !== lastDate) {
-      lastDate = b.date;
-      html += `<div style="padding: 12px 16px 4px; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.08em">${formatDate(b.date)}</div>`;
+    if (b.date!==lastDate) {
+      lastDate=b.date;
+      html+=`<div style="padding:12px 16px 4px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">${formatDate(b.date)}</div>`;
     }
-    html += `
+    html+=`
       <div class="client-card" onclick="openEdit('${b.id}')">
-        <div class="client-avatar" style="background:${typeColor(b.type)}22; border-color:${typeColor(b.type)}44;">
+        <div class="client-avatar" style="background:${typeColor(b.type)}22;border-color:${typeColor(b.type)}44;">
           <span style="font-size:18px">${b.type==='video'?'🎬':b.type==='ambele'?'✨':'📷'}</span>
         </div>
         <div class="client-info">
           <div class="client-name">${b.name}</div>
           <div class="client-sub">${b.time||'—'} ${b.location?'· '+b.location:''}</div>
         </div>
-        ${b.price ? `<div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')}<span style="font-size:11px;color:var(--text3)"> ${b.currency === 'eur' ? '€' : 'lei'}</span></div>` : ''}
+        ${b.price?`<div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')}<span style="font-size:11px;color:var(--text3)"> ${b.currency==='eur'?'€':'lei'}</span></div>`:''}
       </div>
     `;
   });
   el.innerHTML = html;
 }
 
-// ── MODAL ────────────────────────────────────────────
+// ── MODAL ─────────────────────────────────────────────
 function openAdd(dateStr) {
-  editingId = null;
-  selectedType = 'foto';
-  avansChecked = false;
-  document.getElementById('modalTitle').textContent = 'Rezervare nouă';
-  document.getElementById('deleteBookingBtn').style.display = 'none';
-  document.getElementById('fName').value = '';
-  document.getElementById('fPhone').value = '';
-  document.getElementById('fEmail').value = '';
-  document.getElementById('fDate').value = dateStr || (selectedDate || toDateStr(new Date()));
-  document.getElementById('fTime').value = '';
-  document.getElementById('fLocation').value = '';
-  document.getElementById('fPrice').value = '';
-  document.getElementById('fAdvance').value = '';
-  document.getElementById('fNotes').value = '';
-  selectedCurrency = 'lei';
-  updateTypeUI();
-  updateCurrencyUI();
-  updateAvansUI();
+  editingId=null; selectedType='foto'; avansChecked=false;
+  document.getElementById('modalTitle').textContent='Rezervare nouă';
+  document.getElementById('deleteBookingBtn').style.display='none';
+  document.getElementById('fName').value='';
+  document.getElementById('fPhone').value='';
+  document.getElementById('fEmail').value='';
+  document.getElementById('fDate').value=dateStr||(selectedDate||toDateStr(new Date()));
+  document.getElementById('fTime').value='';
+  document.getElementById('fLocation').value='';
+  document.getElementById('fPrice').value='';
+  document.getElementById('fAdvance').value='';
+  document.getElementById('fNotes').value='';
+  selectedCurrency='lei';
+  updateTypeUI(); updateCurrencyUI(); updateAvansUI();
   openModal();
 }
 
 function openEdit(id) {
-  const b = bookings.find(x => x.id === id);
+  const b = bookings.find(x=>x.id===id);
   if (!b) return;
-  editingId = id;
-  selectedType = b.type || 'foto';
-  avansChecked = !!b.avansIncasat;
-  document.getElementById('modalTitle').textContent = 'Editează rezervarea';
-  document.getElementById('deleteBookingBtn').style.display = '';
-  document.getElementById('fName').value = b.name || '';
-  document.getElementById('fPhone').value = b.phone || '';
-  document.getElementById('fEmail').value = b.email || '';
-  document.getElementById('fDate').value = b.date || '';
-  document.getElementById('fTime').value = b.time || '';
-  document.getElementById('fLocation').value = b.location || '';
-  document.getElementById('fPrice').value = b.price || '';
-  document.getElementById('fAdvance').value = b.advance || '';
-  document.getElementById('fNotes').value = b.notes || '';
-  selectedCurrency = b.currency || 'lei';
-  updateTypeUI();
-  updateCurrencyUI();
-  updateAvansUI();
+  editingId=id; selectedType=b.type||'foto'; avansChecked=!!b.avansIncasat;
+  document.getElementById('modalTitle').textContent='Editează rezervarea';
+  document.getElementById('deleteBookingBtn').style.display='';
+  document.getElementById('fName').value=b.name||'';
+  document.getElementById('fPhone').value=b.phone||'';
+  document.getElementById('fEmail').value=b.email||'';
+  document.getElementById('fDate').value=b.date||'';
+  document.getElementById('fTime').value=b.time||'';
+  document.getElementById('fLocation').value=b.location||'';
+  document.getElementById('fPrice').value=b.price||'';
+  document.getElementById('fAdvance').value=b.advance||'';
+  document.getElementById('fNotes').value=b.notes||'';
+  selectedCurrency=b.currency||'lei';
+  updateTypeUI(); updateCurrencyUI(); updateAvansUI();
   openModal();
 }
 
@@ -1013,14 +1100,13 @@ function closeModal() { document.getElementById('bookingModal').classList.remove
 
 function updateTypeUI() {
   document.querySelectorAll('.type-btn').forEach(btn => {
-    btn.className = 'type-btn' + (btn.dataset.type === selectedType ? ' sel-' + selectedType : '');
+    btn.className='type-btn'+(btn.dataset.type===selectedType?' sel-'+selectedType:'');
   });
 }
-
 function updateAvansUI() {
   const cb = document.getElementById('avansCheckbox');
-  cb.className = 'avans-check' + (avansChecked ? ' checked' : '');
-  cb.textContent = avansChecked ? '✓' : '';
+  cb.className='avans-check'+(avansChecked?' checked':'');
+  cb.textContent=avansChecked?'✓':'';
 }
 
 function saveBooking() {
@@ -1028,11 +1114,9 @@ function saveBooking() {
   const date = document.getElementById('fDate').value;
   if (!name) { alert('Introdu numele clientului!'); return; }
   if (!date) { alert('Selectează data!'); return; }
-
   const b = {
-    id: editingId || uid(),
-    name, date,
-    type: selectedType || 'foto',
+    id: editingId||uid(), name, date,
+    type: selectedType||'foto',
     phone: document.getElementById('fPhone').value.trim(),
     email: document.getElementById('fEmail').value.trim(),
     time: document.getElementById('fTime').value,
@@ -1043,63 +1127,55 @@ function saveBooking() {
     avansIncasat: avansChecked,
     notes: document.getElementById('fNotes').value.trim(),
   };
-
-  if (editingId) {
-    const idx = bookings.findIndex(x => x.id === editingId);
-    if (idx !== -1) bookings[idx] = b;
-  } else {
-    bookings.push(b);
-  }
-  save();
-  closeModal();
-  selectedDate = date;
-  const d = new Date(date + 'T00:00:00');
-  currentDate = d;
-  renderAll();
+  const btn = document.getElementById('saveBookingBtn');
+  btn.disabled=true; btn.textContent='Se salvează...';
+  db.collection('bookings').doc(b.id).set(b)
+    .then(() => {
+      selectedDate=date;
+      currentDate=new Date(date+'T00:00:00');
+      closeModal();
+    })
+    .catch(err => {
+      alert('Eroare la salvare. Verifică conexiunea la internet.');
+      console.error(err);
+    })
+    .finally(() => { btn.disabled=false; btn.textContent='Salvează rezervarea'; });
 }
 
 function deleteBooking() {
   if (!editingId) return;
   if (!confirm('Ștergi această rezervare?')) return;
-  bookings = bookings.filter(b => b.id !== editingId);
-  save();
-  closeModal();
-  renderAll();
+  const btn = document.getElementById('deleteBookingBtn');
+  btn.disabled=true;
+  db.collection('bookings').doc(editingId).delete()
+    .then(() => closeModal())
+    .catch(err => { alert('Eroare la ștergere.'); console.error(err); })
+    .finally(() => { btn.disabled=false; });
 }
 
-// ── GLOBAL SEARCH ────────────────────────────────────
-let searchOpen = false;
-
+// ── SEARCH ────────────────────────────────────────────
 function openSearch() {
-  searchOpen = true;
-  document.getElementById('globalSearchBar').style.display = 'block';
-  setTimeout(() => document.getElementById('globalSearchInput').focus(), 100);
+  document.getElementById('globalSearchBar').style.display='block';
+  setTimeout(()=>document.getElementById('globalSearchInput').focus(),100);
 }
-
 function closeSearch() {
-  searchOpen = false;
-  document.getElementById('globalSearchBar').style.display = 'none';
-  document.getElementById('globalSearchInput').value = '';
-  document.getElementById('globalSearchResults').innerHTML = '';
+  document.getElementById('globalSearchBar').style.display='none';
+  document.getElementById('globalSearchInput').value='';
+  document.getElementById('globalSearchResults').innerHTML='';
 }
-
 function doGlobalSearch(q) {
   const el = document.getElementById('globalSearchResults');
-  if (!q.trim()) { el.innerHTML = ''; return; }
+  if (!q.trim()) { el.innerHTML=''; return; }
   const ql = q.toLowerCase();
   const results = bookings.filter(b =>
-    b.name.toLowerCase().includes(ql) ||
-    (b.phone||'').includes(ql) ||
-    (b.email||'').toLowerCase().includes(ql) ||
-    (b.location||'').toLowerCase().includes(ql) ||
+    b.name.toLowerCase().includes(ql)||
+    (b.phone||'').includes(ql)||
+    (b.email||'').toLowerCase().includes(ql)||
+    (b.location||'').toLowerCase().includes(ql)||
     (b.notes||'').toLowerCase().includes(ql)
-  ).sort((a,b) => b.date.localeCompare(a.date));
-
-  if (!results.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon" style="font-size:32px">🔍</div><p>Niciun rezultat găsit</p></div>';
-    return;
-  }
-  el.innerHTML = results.map(b => `
+  ).sort((a,b)=>b.date.localeCompare(a.date));
+  if (!results.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon" style="font-size:32px">🔍</div><p>Niciun rezultat găsit</p></div>'; return; }
+  el.innerHTML = results.map(b=>`
     <div class="client-card" onclick="closeSearch();openEdit('${b.id}')">
       <div class="client-avatar" style="background:${typeColor(b.type)}22;border-color:${typeColor(b.type)}44;">
         <span style="font-size:18px">${b.type==='video'?'🎬':b.type==='ambele'?'✨':'📷'}</span>
@@ -1108,142 +1184,106 @@ function doGlobalSearch(q) {
         <div class="client-name">${b.name}</div>
         <div class="client-sub">${b.date} ${b.time?'· '+b.time:''} ${b.location?'· '+b.location:''}</div>
       </div>
-      ${b.price ? `<div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}</div>` : ''}
+      ${b.price?`<div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}</div>`:''}
     </div>
   `).join('');
 }
 
-// ── BACKUP / EXPORT / IMPORT ──────────────────────────
+// ── BACKUP ────────────────────────────────────────────
 function openBackup() {
-  const total = bookings.length;
-  const clients = new Set(bookings.map(b => b.name)).size;
-  document.getElementById('exportInfo').textContent = `${total} rezervări · ${clients} clienți`;
-  document.getElementById('importStatus').style.display = 'none';
+  const total=bookings.length, clients=new Set(bookings.map(b=>b.name)).size;
+  document.getElementById('exportInfo').textContent=`${total} rezervări · ${clients} clienți`;
+  document.getElementById('importStatus').style.display='none';
   document.getElementById('backupModal').classList.add('open');
 }
-
 function exportJson() {
-  const data = { version: 1, exportDate: new Date().toISOString(), bookings };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `mcm-backup-${toDateStr(new Date())}.json`;
-  a.click();
+  const data={version:1,exportDate:new Date().toISOString(),bookings};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`mcm-backup-${toDateStr(new Date())}.json`; a.click();
   URL.revokeObjectURL(url);
 }
-
 function importJson(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
+  const reader=new FileReader();
+  reader.onload=e=>{
     try {
-      const data = JSON.parse(e.target.result);
-      const imported = data.bookings || (Array.isArray(data) ? data : []);
+      const data=JSON.parse(e.target.result);
+      const imported=data.bookings||(Array.isArray(data)?data:[]);
       if (!imported.length) throw new Error('Fișier gol');
-      // Merge: add only bookings with IDs that don't exist
-      let added = 0;
-      imported.forEach(b => {
-        if (!bookings.find(x => x.id === b.id)) { bookings.push(b); added++; }
+      const existingIds=new Set(bookings.map(b=>b.id));
+      const toAdd=imported.filter(b=>!existingIds.has(b.id));
+      if (!toAdd.length) {
+        const s=document.getElementById('importStatus');
+        s.style.display='block'; s.style.color='var(--text3)'; s.textContent='Toate rezervările există deja.'; return;
+      }
+      const batch=db.batch();
+      toAdd.forEach(b=>batch.set(db.collection('bookings').doc(b.id),b));
+      batch.commit().then(()=>{
+        const s=document.getElementById('importStatus');
+        s.style.display='block'; s.style.color='var(--success)'; s.textContent=`✓ ${toAdd.length} rezervări importate cu succes!`;
+      }).catch(()=>{
+        const s=document.getElementById('importStatus');
+        s.style.display='block'; s.style.color='var(--danger)'; s.textContent='✗ Eroare la import.';
       });
-      save();
-      renderAll();
-      const status = document.getElementById('importStatus');
-      status.style.display = 'block';
-      status.style.color = 'var(--success)';
-      status.textContent = `✓ ${added} rezervări importate cu succes!`;
     } catch(err) {
-      const status = document.getElementById('importStatus');
-      status.style.display = 'block';
-      status.style.color = 'var(--danger)';
-      status.textContent = '✗ Fișier invalid sau corupt.';
+      const s=document.getElementById('importStatus');
+      s.style.display='block'; s.style.color='var(--danger)'; s.textContent='✗ Fișier invalid sau corupt.';
     }
   };
   reader.readAsText(file);
 }
 
-// ── TABS ─────────────────────────────────────────────
+// ── TABS ──────────────────────────────────────────────
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.getElementById('calendarView').classList.toggle('hidden', tab !== 'calendar');
-  document.getElementById('clientsView').classList.toggle('hidden', tab !== 'clients');
-  document.getElementById('upcomingView').classList.toggle('hidden', tab !== 'upcoming');
-  if (tab === 'clients') renderClients();
-  if (tab === 'upcoming') renderUpcoming();
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.getElementById('calendarView').classList.toggle('hidden',tab!=='calendar');
+  document.getElementById('clientsView').classList.toggle('hidden',tab!=='clients');
+  document.getElementById('upcomingView').classList.toggle('hidden',tab!=='upcoming');
+  if (tab==='clients') renderClients();
+  if (tab==='upcoming') renderUpcoming();
 }
-
 function renderAll() {
   renderCalendar();
-  const activeTab = document.querySelector('.tab.active')?.dataset.tab;
-  if (activeTab === 'clients') renderClients();
-  if (activeTab === 'upcoming') renderUpcoming();
+  const activeTab=document.querySelector('.tab.active')?.dataset.tab;
+  if (activeTab==='clients') renderClients();
+  if (activeTab==='upcoming') renderUpcoming();
 }
 
-// ── EVENTS ───────────────────────────────────────────
-document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
-document.getElementById('prevMonth').addEventListener('click', () => {
-  currentDate.setMonth(currentDate.getMonth() - 1);
-  selectedDate = null;
-  renderCalendar();
-});
-document.getElementById('nextMonth').addEventListener('click', () => {
-  currentDate.setMonth(currentDate.getMonth() + 1);
-  selectedDate = null;
-  renderCalendar();
-});
-document.getElementById('addBookingBtn').addEventListener('click', () => openAdd());
-document.getElementById('closeModal').addEventListener('click', closeModal);
-document.getElementById('bookingModal').addEventListener('click', e => { if (e.target === document.getElementById('bookingModal')) closeModal(); });
-document.getElementById('saveBookingBtn').addEventListener('click', saveBooking);
-document.getElementById('deleteBookingBtn').addEventListener('click', deleteBooking);
+// ── EVENTS ────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
+document.getElementById('prevMonth').addEventListener('click',()=>{ currentDate.setMonth(currentDate.getMonth()-1); selectedDate=null; renderCalendar(); });
+document.getElementById('nextMonth').addEventListener('click',()=>{ currentDate.setMonth(currentDate.getMonth()+1); selectedDate=null; renderCalendar(); });
+document.getElementById('addBookingBtn').addEventListener('click',()=>openAdd());
+document.getElementById('closeModal').addEventListener('click',closeModal);
+document.getElementById('bookingModal').addEventListener('click',e=>{ if(e.target===document.getElementById('bookingModal')) closeModal(); });
+document.getElementById('saveBookingBtn').addEventListener('click',saveBooking);
+document.getElementById('deleteBookingBtn').addEventListener('click',deleteBooking);
+document.querySelectorAll('.type-btn').forEach(btn=>btn.addEventListener('click',()=>{ selectedType=btn.dataset.type; updateTypeUI(); }));
+document.querySelectorAll('.currency-btn').forEach(btn=>btn.addEventListener('click',()=>{ selectedCurrency=btn.dataset.currency; updateCurrencyUI(); }));
+document.getElementById('fPrice').addEventListener('input',updateRest);
+document.getElementById('fAdvance').addEventListener('input',updateRest);
+document.getElementById('avansCheckbox').addEventListener('click',()=>{ avansChecked=!avansChecked; updateAvansUI(); });
+document.getElementById('avansLabel').addEventListener('click',()=>{ avansChecked=!avansChecked; updateAvansUI(); });
+document.getElementById('searchToggleBtn').addEventListener('click',openSearch);
+document.getElementById('closeSearchBtn').addEventListener('click',closeSearch);
+document.getElementById('globalSearchInput').addEventListener('input',e=>doGlobalSearch(e.target.value));
+document.getElementById('backupBtn').addEventListener('click',openBackup);
+document.getElementById('closeBackupModal').addEventListener('click',()=>document.getElementById('backupModal').classList.remove('open'));
+document.getElementById('backupModal').addEventListener('click',e=>{ if(e.target===document.getElementById('backupModal')) document.getElementById('backupModal').classList.remove('open'); });
+document.getElementById('exportJsonBtn').addEventListener('click',exportJson);
+document.getElementById('importFileInput').addEventListener('change',e=>{ if(e.target.files[0]) importJson(e.target.files[0]); });
+document.getElementById('clientSearch').addEventListener('input',e=>renderClients(e.target.value));
 
-document.querySelectorAll('.type-btn').forEach(btn => {
-  btn.addEventListener('click', () => { selectedType = btn.dataset.type; updateTypeUI(); });
-});
-
-document.querySelectorAll('.currency-btn').forEach(btn => {
-  btn.addEventListener('click', () => { selectedCurrency = btn.dataset.currency; updateCurrencyUI(); });
-});
-
-document.getElementById('fPrice').addEventListener('input', updateRest);
-document.getElementById('fAdvance').addEventListener('input', updateRest);
-
-document.getElementById('avansCheckbox').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
-document.getElementById('avansLabel').addEventListener('click', () => { avansChecked = !avansChecked; updateAvansUI(); });
-
-document.getElementById('searchToggleBtn').addEventListener('click', openSearch);
-document.getElementById('closeSearchBtn').addEventListener('click', closeSearch);
-document.getElementById('globalSearchInput').addEventListener('input', e => doGlobalSearch(e.target.value));
-
-document.getElementById('backupBtn').addEventListener('click', openBackup);
-document.getElementById('closeBackupModal').addEventListener('click', () => document.getElementById('backupModal').classList.remove('open'));
-document.getElementById('backupModal').addEventListener('click', e => { if (e.target === document.getElementById('backupModal')) document.getElementById('backupModal').classList.remove('open'); });
-document.getElementById('exportJsonBtn').addEventListener('click', exportJson);
-document.getElementById('importFileInput').addEventListener('change', e => { if (e.target.files[0]) importJson(e.target.files[0]); });
-
-document.getElementById('clientSearch').addEventListener('input', e => renderClients(e.target.value));
-
-// PWA install prompt
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const banner = document.getElementById('installBanner');
-  banner.innerHTML = `
-    <div class="install-banner" id="installBtn">
-      <span>📲</span>
-      <p><strong>Instalează aplicația</strong><br>Adaugă pe ecranul principal</p>
-      <span class="install-close" id="installClose">✕</span>
-    </div>
-  `;
-  document.getElementById('installBtn').addEventListener('click', async (ev) => {
-    if (ev.target.id === 'installClose') { banner.innerHTML=''; return; }
-    if (deferredPrompt) { deferredPrompt.prompt(); const r = await deferredPrompt.userChoice; deferredPrompt=null; banner.innerHTML=''; }
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredPrompt=e;
+  const banner=document.getElementById('installBanner');
+  banner.innerHTML=`<div class="install-banner" id="installBtn"><span>📲</span><p><strong>Instalează aplicația</strong><br>Adaugă pe ecranul principal</p><span class="install-close" id="installClose">✕</span></div>`;
+  document.getElementById('installBtn').addEventListener('click',async(ev)=>{
+    if(ev.target.id==='installClose'){banner.innerHTML='';return;}
+    if(deferredPrompt){deferredPrompt.prompt();const r=await deferredPrompt.userChoice;deferredPrompt=null;banner.innerHTML='';}
   });
 });
-
-// ── INIT ─────────────────────────────────────────────
-load();
-selectedDate = toDateStr(new Date());
-renderCalendar();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(()=>{});
