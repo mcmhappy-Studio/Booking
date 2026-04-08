@@ -197,9 +197,9 @@
     letter-spacing: 0.04em;
   }
   .logo span { color: var(--text2); font-weight: 400; font-size: 13px; letter-spacing: 0.06em; margin-left: 6px; }
-  .header-actions { display: flex; gap: 8px; }
+  .header-actions { display: flex; gap: 6px; }
   .icon-btn {
-    width: 36px; height: 36px;
+    width: 34px; height: 34px;
     border-radius: 50%;
     background: var(--bg3);
     border: 1px solid var(--border2);
@@ -807,24 +807,46 @@ function initGoogleCalendar() {
     callback: (response) => {
       if (response.error) { alert('Eroare conectare Google Calendar.'); return; }
       gcalToken = response.access_token;
-      document.getElementById('gcalBtn').classList.add('gcal-connected');
-      document.getElementById('gcalBtn').title = 'Google Calendar conectat ✓';
+      // Salvează token și expiry în localStorage
+      const expiry = Date.now() + (response.expires_in * 1000);
+      localStorage.setItem('gcal_token', gcalToken);
+      localStorage.setItem('gcal_expiry', expiry);
+      setGcalConnected(true);
       alert('✅ Google Calendar conectat! Rezervările noi vor apărea automat.');
     }
   });
+  // Restaurează token dacă e valid
+  const savedToken = localStorage.getItem('gcal_token');
+  const savedExpiry = localStorage.getItem('gcal_expiry');
+  if (savedToken && savedExpiry && Date.now() < Number(savedExpiry)) {
+    gcalToken = savedToken;
+    setGcalConnected(true);
+  }
+}
+
+function setGcalConnected(connected) {
+  const btn = document.getElementById('gcalBtn');
+  if (!btn) return;
+  if (connected) {
+    btn.classList.add('gcal-connected');
+    btn.title = 'Google Calendar conectat ✓';
+  } else {
+    btn.classList.remove('gcal-connected');
+    btn.title = 'Google Calendar';
+  }
 }
 
 function connectGoogleCalendar() {
   if (!gcalTokenClient) {
-    // retry after GIS loads
     setTimeout(() => { initGoogleCalendar(); if (gcalTokenClient) gcalTokenClient.requestAccessToken(); }, 500);
     return;
   }
   if (gcalToken) {
     if (confirm('Google Calendar este deja conectat. Deconectezi?')) {
       gcalToken = null;
-      document.getElementById('gcalBtn').classList.remove('gcal-connected');
-      document.getElementById('gcalBtn').title = 'Google Calendar';
+      localStorage.removeItem('gcal_token');
+      localStorage.removeItem('gcal_expiry');
+      setGcalConnected(false);
     }
     return;
   }
@@ -854,7 +876,12 @@ function addToGoogleCalendar(b) {
     headers: { 'Authorization': 'Bearer ' + gcalToken, 'Content-Type': 'application/json' },
     body: JSON.stringify(event)
   }).then(r => {
-    if (r.status === 401) { gcalToken = null; document.getElementById('gcalBtn').classList.remove('gcal-connected'); }
+    if (r.status === 401) {
+      gcalToken = null;
+      localStorage.removeItem('gcal_token');
+      localStorage.removeItem('gcal_expiry');
+      setGcalConnected(false);
+    }
   }).catch(err => console.error('GCal error:', err));
 }
 
