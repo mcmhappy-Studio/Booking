@@ -681,6 +681,26 @@
     </div>
     <div class="form-divider"></div>
     <div class="form-group">
+      <label class="form-label">Tip eveniment</label>
+      <select class="form-input form-select" id="fEventType">
+        <option value="">— Selectează tipul evenimentului —</option>
+        <option value="Nuntă">💍 Nuntă</option>
+        <option value="Cununie civilă">🏛️ Cununie civilă</option>
+        <option value="Cununie religioasă">⛪ Cununie religioasă</option>
+        <option value="Logodnă">💎 Logodnă</option>
+        <option value="Botez">👶 Botez</option>
+        <option value="Maternitate">🤰 Maternitate</option>
+        <option value="Nou-născut">🍼 Nou-născut</option>
+        <option value="Aniversare">🎂 Aniversare</option>
+        <option value="Ședință foto">📷 Ședință foto</option>
+        <option value="Corporate">💼 Corporate</option>
+        <option value="Familie">👨‍👩‍👧 Familie</option>
+        <option value="Portret">🎭 Portret</option>
+        <option value="Petrecere">🎉 Petrecere</option>
+        <option value="Altele">✏️ Altele</option>
+      </select>
+    </div>
+    <div class="form-group">
       <label class="form-label">Nume client *</label>
       <input type="text" class="form-input" id="fName" placeholder="ex: Ana Ionescu">
     </div>
@@ -1107,7 +1127,7 @@ function renderDayDetail() {
     <div class="booking-item" onclick="openEdit('${b.id}')">
       <div class="booking-color-bar" style="background:${typeColor(b.type)}"></div>
       <div class="booking-info">
-        <div class="booking-name">${b.name}</div>
+        <div class="booking-name">${b.eventType?`<span style="font-size:11px;color:var(--text3);font-weight:400;margin-right:6px;text-transform:uppercase;letter-spacing:.05em">${b.eventType}</span>`:''}${b.name}</div>
         <div class="booking-meta">${b.time?b.time+' · ':''}${typeLabel(b.type)}${b.location?' · '+b.location:''}</div>
       </div>
       ${b.price?`<div class="booking-price">${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}</div>`:''}
@@ -1177,7 +1197,7 @@ function renderUpcoming(filterName='') {
           <span style="font-size:18px">${b.type==='video'?'🎬':b.type==='ambele'?'✨':'📷'}</span>
         </div>
         <div class="client-info">
-          <div class="client-name">${b.name}</div>
+          <div class="client-name">${b.eventType?`<span style="font-size:10px;color:var(--text3);font-weight:400;margin-right:5px;text-transform:uppercase;letter-spacing:.05em">${b.eventType}</span>`:''}${b.name}</div>
           <div class="client-sub">${b.time||'—'} ${b.location?'· '+b.location:''}</div>
         </div>
         ${b.price?`<div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')}<span style="font-size:11px;color:var(--text3)"> ${b.currency==='eur'?'€':'lei'}</span></div>`:''}
@@ -1192,6 +1212,7 @@ function openAdd(dateStr) {
   editingId=null; selectedType='foto'; avansChecked=false;
   document.getElementById('modalTitle').textContent='Rezervare nouă';
   document.getElementById('deleteBookingBtn').style.display='none';
+  document.getElementById('fEventType').value='';
   document.getElementById('fName').value='';
   document.getElementById('fPhone').value='';
   document.getElementById('fEmail').value='';
@@ -1212,6 +1233,7 @@ function openEdit(id) {
   editingId=id; selectedType=b.type||'foto'; avansChecked=!!b.avansIncasat;
   document.getElementById('modalTitle').textContent='Editează rezervarea';
   document.getElementById('deleteBookingBtn').style.display='';
+  document.getElementById('fEventType').value=b.eventType||'';
   document.getElementById('fName').value=b.name||'';
   document.getElementById('fPhone').value=b.phone||'';
   document.getElementById('fEmail').value=b.email||'';
@@ -1248,6 +1270,7 @@ function saveBooking() {
   const b = {
     id: editingId||uid(), name, date,
     type: selectedType||'foto',
+    eventType: document.getElementById('fEventType').value,
     phone: document.getElementById('fPhone').value.trim(),
     email: document.getElementById('fEmail').value.trim(),
     time: document.getElementById('fTime').value,
@@ -1304,6 +1327,7 @@ function doGlobalSearch(q) {
     (b.phone||'').includes(ql)||
     (b.email||'').toLowerCase().includes(ql)||
     (b.location||'').toLowerCase().includes(ql)||
+    (b.eventType||'').toLowerCase().includes(ql)||
     (b.notes||'').toLowerCase().includes(ql)
   ).sort((a,b)=>b.date.localeCompare(a.date));
   if (!results.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon" style="font-size:32px">🔍</div><p>Niciun rezultat găsit</p></div>'; return; }
@@ -1328,13 +1352,39 @@ function openBackup() {
   document.getElementById('importStatus').style.display='none';
   document.getElementById('backupModal').classList.add('open');
 }
+function downloadFile(content, filename, mimeType) {
+  // Median/WebView: folosim metoda nativă dacă e disponibilă
+  if (window.median && window.median.share) {
+    window.median.share({ text: content, subject: filename });
+    return;
+  }
+  // Fallback: data URI (funcționează în WebView Android)
+  const b64 = typeof btoa !== 'undefined'
+    ? btoa(unescape(encodeURIComponent(content)))
+    : null;
+  if (b64) {
+    const a = document.createElement('a');
+    a.href = `data:${mimeType};base64,${b64}`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+  // Fallback final: Blob URL
+  const blob = new Blob([content], {type: mimeType});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 function exportJson() {
   const data={version:1,exportDate:new Date().toISOString(),bookings};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=`mcm-backup-${toDateStr(new Date())}.json`; a.click();
-  URL.revokeObjectURL(url);
+  downloadFile(JSON.stringify(data,null,2), `mcm-backup-${toDateStr(new Date())}.json`, 'application/json');
 }
 function exportIcs() {
   function pad(n){return String(n).padStart(2,'0');}
@@ -1351,24 +1401,21 @@ function exportIcs() {
   let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//MCM Happy Studio//Booking App//RO\r\nCALNAME:MCM Happy Studio\r\n';
   bookings.forEach(b=>{
     const typeName=b.type==='foto'?'Foto':b.type==='video'?'Video':'Foto+Video';
+    const evType=b.eventType?b.eventType+' · ':'';
     const pret=b.price?`Pret: ${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'EUR':'lei'}`:'';
     const avans=b.advance?`Avans: ${Number(b.advance).toLocaleString('ro-RO')} ${b.currency==='eur'?'EUR':'lei'}`:'';
-    const desc=[typeName,b.phone?'Tel: '+b.phone:'',b.email?'Email: '+b.email:'',pret,avans,b.notes?'Note: '+b.notes:''].filter(Boolean).join('\\n');
+    const desc=[evType+typeName,b.phone?'Tel: '+b.phone:'',b.email?'Email: '+b.email:'',pret,avans,b.notes?'Note: '+b.notes:''].filter(Boolean).join('\\n');
     ics+='BEGIN:VEVENT\r\n';
     ics+=`UID:${b.id}@mcmhappystudio\r\n`;
     ics+=`DTSTART:${toIcsDate(b.date,b.time)}\r\n`;
     ics+=`DTEND:${toIcsDateEnd(b.date,b.time)}\r\n`;
-    ics+=`SUMMARY:${esc(b.name)} - ${typeName}\r\n`;
+    ics+=`SUMMARY:${esc(b.name)} - ${evType}${typeName}\r\n`;
     ics+=`DESCRIPTION:${desc}\r\n`;
     if(b.location) ics+=`LOCATION:${esc(b.location)}\r\n`;
     ics+='END:VEVENT\r\n';
   });
   ics+='END:VCALENDAR';
-  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=`mcm-calendar-${toDateStr(new Date())}.ics`; a.click();
-  URL.revokeObjectURL(url);
+  downloadFile(ics, `mcm-calendar-${toDateStr(new Date())}.ics`, 'text/calendar;charset=utf-8');
 }
 function importJson(file) {
   const reader=new FileReader();
