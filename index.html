@@ -1322,13 +1322,61 @@ function doGlobalSearch(q) {
 }
 
 // ── BACKUP ────────────────────────────────────────────
+
+// UNIVERSAL DOWNLOAD
+function downloadFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+
+  if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename)] })) {
+    const file = new File([blob], filename, { type: blob.type });
+    navigator.share({ files: [file], title: filename }).catch(() => fallbackDownload(url, filename));
+    return;
+  }
+
+  if (!isWebView()) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  fallbackDownload(url, filename);
+}
+
+function fallbackDownload(url, filename) {
+  const newWindow = window.open(url, '_blank');
+  if (!newWindow) {
+    alert('Browserul blochează descărcarea. Ține apăsat și salvează manual.');
+  }
+}
+
 function openBackup() {
   const total=bookings.length, clients=new Set(bookings.map(b=>b.name)).size;
   document.getElementById('exportInfo').textContent=`${total} rezervări · ${clients} clienți`;
   document.getElementById('importStatus').style.display='none';
   document.getElementById('backupModal').classList.add('open');
 }
+
 function exportJson() {
+  const data = {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    bookings
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: 'application/json'
+  });
+
+  const filename = `mcm-backup-${toDateStr(new Date())}.json`;
+  downloadFile(blob, filename);
+  return;
+}
+
   const data={version:1,exportDate:new Date().toISOString(),bookings};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -1364,11 +1412,9 @@ function exportIcs() {
     ics+='END:VEVENT\r\n';
   });
   ics+='END:VCALENDAR';
-  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=`mcm-calendar-${toDateStr(new Date())}.ics`; a.click();
-  URL.revokeObjectURL(url);
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const filename = `mcm-calendar-${toDateStr(new Date())}.ics`;
+  downloadFile(blob, filename);
 }
 function importJson(file) {
   const reader=new FileReader();
@@ -1459,3 +1505,7 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
+
+document.getElementById('exportJsonBtn').addEventListener('click', exportJson);
+document.getElementById('exportIcsBtn').addEventListener('click', exportIcs);
