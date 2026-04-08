@@ -836,7 +836,18 @@ function setGcalConnected(connected) {
   }
 }
 
+function isWebView() {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.includes('wv') || ua.includes('median') || (ua.includes('android') && !ua.includes('chrome'));
+}
+
 function connectGoogleCalendar() {
+  if (isWebView()) {
+    // Deschide browserul extern pentru autentificare Google
+    const returnUrl = encodeURIComponent(window.location.href);
+    window.open('https://mcmhappy-studio.github.io/Booking/?gcal=1', '_blank');
+    return;
+  }
   if (!gcalTokenClient) {
     setTimeout(() => { initGoogleCalendar(); if (gcalTokenClient) gcalTokenClient.requestAccessToken(); }, 500);
     return;
@@ -888,7 +899,20 @@ function addToGoogleCalendar(b) {
 window.addEventListener('load', () => {
   // Wait for GIS to load
   const tryInit = setInterval(() => {
-    if (window.google && window.google.accounts) { initGoogleCalendar(); clearInterval(tryInit); }
+    if (window.google && window.google.accounts) {
+      initGoogleCalendar();
+      clearInterval(tryInit);
+      // Dacă s-a deschis din APK pentru autentificare Google Calendar
+      if (new URLSearchParams(window.location.search).get('gcal') === '1') {
+        setTimeout(() => {
+          if (gcalToken) {
+            alert('✅ Google Calendar deja conectat!');
+          } else if (gcalTokenClient) {
+            gcalTokenClient.requestAccessToken();
+          }
+        }, 1000);
+      }
+    }
   }, 300);
 });
 
