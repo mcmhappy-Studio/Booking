@@ -430,11 +430,18 @@
     outline: none;
     transition: border-color 0.2s;
     -webkit-appearance: none;
+    appearance: none;
   }
   .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--gold); background: var(--bg4); }
   .form-input::placeholder, .form-textarea::placeholder { color: var(--text3); }
-  .form-select { cursor: pointer; }
-  .form-select option { background: var(--bg2); }
+  .form-select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23a89f8e' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .form-select option { background: #222222; color: #f0ece4; }
   .form-textarea { resize: none; height: 80px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 20px 0; }
   .form-row .form-group { padding: 0; }
@@ -682,8 +689,8 @@
     <div class="form-divider"></div>
     <div class="form-group">
       <label class="form-label">Tip eveniment</label>
-      <select class="form-input form-select" id="fEventType">
-        <option value="">— Selectează tipul evenimentului —</option>
+      <select class="form-input form-select" id="fEventType" style="color:var(--text2)">
+        <option value="" style="color:var(--text3)">— Selectează tipul evenimentului —</option>
         <option value="Nuntă">💍 Nuntă</option>
         <option value="Cununie civilă">🏛️ Cununie civilă</option>
         <option value="Cununie religioasă">⛪ Cununie religioasă</option>
