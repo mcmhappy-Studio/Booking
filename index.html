@@ -12,10 +12,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- Firebase SDKs (compat) -->
+
+
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -534,6 +538,8 @@
     transition: opacity 0.4s;
   }
   .sync-dot.visible { opacity: 1; }
+  .icon-btn.gcal-connected { border-color: #4a9e6f; color: #4a9e6f; }
+  .icon-btn.gcal-connected:hover { background: rgba(74,158,111,0.1); }
 
   .install-banner {
     margin: 10px 16px 0;
@@ -593,6 +599,7 @@
       <div class="header-actions">
         <div class="icon-btn" id="searchToggleBtn" title="Caută">🔍</div>
         <div class="icon-btn" id="backupBtn" title="Backup">💾</div>
+        <div class="icon-btn" id="gcalBtn" title="Google Calendar" style="font-size:15px">📅</div>
         <div class="icon-btn" id="logoutBtn" title="Ieși din cont" style="font-size:14px">🚪</div>
         <div class="icon-btn add-btn" id="addBookingBtn" title="Rezervare nouă">+</div>
       </div>
@@ -755,6 +762,7 @@
         <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">📤 Export date</div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:10px" id="exportInfo">Se calculează...</div>
         <button class="btn-primary" id="exportJsonBtn">Descarcă backup (.json)</button>
+        <button class="btn-primary" id="exportIcsBtn" style="margin-top:8px;background:var(--bg4);color:var(--text);border:1px solid var(--border2)">📅 Export Google Calendar (.ics)</button>
       </div>
       <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px">
         <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">📥 Import / Restaurare</div>
@@ -784,6 +792,78 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// ── GOOGLE CALENDAR ───────────────────────────────────
+const GCAL_CLIENT_ID = '80733933841-2bfdrh88mcjf7aqqmv89irjlv7n287ce.apps.googleusercontent.com';
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+let gcalToken = null;
+let gcalTokenClient = null;
+
+function initGoogleCalendar() {
+  if (!window.google) return;
+  gcalTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GCAL_CLIENT_ID,
+    scope: GCAL_SCOPE,
+    callback: (response) => {
+      if (response.error) { alert('Eroare conectare Google Calendar.'); return; }
+      gcalToken = response.access_token;
+      document.getElementById('gcalBtn').classList.add('gcal-connected');
+      document.getElementById('gcalBtn').title = 'Google Calendar conectat ✓';
+      alert('✅ Google Calendar conectat! Rezervările noi vor apărea automat.');
+    }
+  });
+}
+
+function connectGoogleCalendar() {
+  if (!gcalTokenClient) {
+    // retry after GIS loads
+    setTimeout(() => { initGoogleCalendar(); if (gcalTokenClient) gcalTokenClient.requestAccessToken(); }, 500);
+    return;
+  }
+  if (gcalToken) {
+    if (confirm('Google Calendar este deja conectat. Deconectezi?')) {
+      gcalToken = null;
+      document.getElementById('gcalBtn').classList.remove('gcal-connected');
+      document.getElementById('gcalBtn').title = 'Google Calendar';
+    }
+    return;
+  }
+  gcalTokenClient.requestAccessToken();
+}
+
+function addToGoogleCalendar(b) {
+  if (!gcalToken) return;
+  const typeName = b.type==='foto'?'Foto':b.type==='video'?'Video':'Foto+Video';
+  const timeStr = b.time || '10:00';
+  const startDt = `${b.date}T${timeStr}:00`;
+  const endDate = new Date(`${b.date}T${timeStr}:00`);
+  endDate.setHours(endDate.getHours() + 1);
+  const endDt = endDate.toISOString().slice(0,19);
+  const pret = b.price ? `Preț: ${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}` : '';
+  const avans = b.advance ? `Avans: ${Number(b.advance).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}` : '';
+  const desc = [typeName, b.phone?'Tel: '+b.phone:'', b.email?'Email: '+b.email:'', pret, avans, b.notes?'Note: '+b.notes:''].filter(Boolean).join('\n');
+  const event = {
+    summary: `${b.name} — ${typeName}`,
+    location: b.location || '',
+    description: desc,
+    start: { dateTime: startDt, timeZone: 'Europe/Bucharest' },
+    end: { dateTime: endDt, timeZone: 'Europe/Bucharest' }
+  };
+  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + gcalToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify(event)
+  }).then(r => {
+    if (r.status === 401) { gcalToken = null; document.getElementById('gcalBtn').classList.remove('gcal-connected'); }
+  }).catch(err => console.error('GCal error:', err));
+}
+
+window.addEventListener('load', () => {
+  // Wait for GIS to load
+  const tryInit = setInterval(() => {
+    if (window.google && window.google.accounts) { initGoogleCalendar(); clearInterval(tryInit); }
+  }, 300);
+});
 
 // ── STATE ─────────────────────────────────────────────
 let bookings = [];
@@ -1131,6 +1211,7 @@ function saveBooking() {
   btn.disabled=true; btn.textContent='Se salvează...';
   db.collection('bookings').doc(b.id).set(b)
     .then(() => {
+      if (!editingId) addToGoogleCalendar(b); // doar la rezervări noi
       selectedDate=date;
       currentDate=new Date(date+'T00:00:00');
       closeModal();
@@ -1204,6 +1285,40 @@ function exportJson() {
   a.href=url; a.download=`mcm-backup-${toDateStr(new Date())}.json`; a.click();
   URL.revokeObjectURL(url);
 }
+function exportIcs() {
+  function pad(n){return String(n).padStart(2,'0');}
+  function toIcsDate(dateStr,timeStr){
+    const d=new Date(dateStr+'T'+(timeStr||'10:00')+':00');
+    return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  }
+  function toIcsDateEnd(dateStr,timeStr){
+    const d=new Date(dateStr+'T'+(timeStr||'10:00')+':00');
+    d.setHours(d.getHours()+1);
+    return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  }
+  function esc(s){return(s||'').replace(/,/g,'\\,').replace(/;/g,'\\;').replace(/\n/g,'\\n');}
+  let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//MCM Happy Studio//Booking App//RO\r\nCALNAME:MCM Happy Studio\r\n';
+  bookings.forEach(b=>{
+    const typeName=b.type==='foto'?'Foto':b.type==='video'?'Video':'Foto+Video';
+    const pret=b.price?`Pret: ${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'EUR':'lei'}`:'';
+    const avans=b.advance?`Avans: ${Number(b.advance).toLocaleString('ro-RO')} ${b.currency==='eur'?'EUR':'lei'}`:'';
+    const desc=[typeName,b.phone?'Tel: '+b.phone:'',b.email?'Email: '+b.email:'',pret,avans,b.notes?'Note: '+b.notes:''].filter(Boolean).join('\\n');
+    ics+='BEGIN:VEVENT\r\n';
+    ics+=`UID:${b.id}@mcmhappystudio\r\n`;
+    ics+=`DTSTART:${toIcsDate(b.date,b.time)}\r\n`;
+    ics+=`DTEND:${toIcsDateEnd(b.date,b.time)}\r\n`;
+    ics+=`SUMMARY:${esc(b.name)} - ${typeName}\r\n`;
+    ics+=`DESCRIPTION:${desc}\r\n`;
+    if(b.location) ics+=`LOCATION:${esc(b.location)}\r\n`;
+    ics+='END:VEVENT\r\n';
+  });
+  ics+='END:VCALENDAR';
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`mcm-calendar-${toDateStr(new Date())}.ics`; a.click();
+  URL.revokeObjectURL(url);
+}
 function importJson(file) {
   const reader=new FileReader();
   reader.onload=e=>{
@@ -1269,9 +1384,11 @@ document.getElementById('searchToggleBtn').addEventListener('click',openSearch);
 document.getElementById('closeSearchBtn').addEventListener('click',closeSearch);
 document.getElementById('globalSearchInput').addEventListener('input',e=>doGlobalSearch(e.target.value));
 document.getElementById('backupBtn').addEventListener('click',openBackup);
+document.getElementById('gcalBtn').addEventListener('click',connectGoogleCalendar);
 document.getElementById('closeBackupModal').addEventListener('click',()=>document.getElementById('backupModal').classList.remove('open'));
 document.getElementById('backupModal').addEventListener('click',e=>{ if(e.target===document.getElementById('backupModal')) document.getElementById('backupModal').classList.remove('open'); });
 document.getElementById('exportJsonBtn').addEventListener('click',exportJson);
+document.getElementById('exportIcsBtn').addEventListener('click',exportIcs);
 document.getElementById('importFileInput').addEventListener('change',e=>{ if(e.target.files[0]) importJson(e.target.files[0]); });
 document.getElementById('clientSearch').addEventListener('input',e=>renderClients(e.target.value));
 
