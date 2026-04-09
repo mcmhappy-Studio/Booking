@@ -677,6 +677,11 @@
     </div>
     <div class="form-divider"></div>
     <div class="form-group">
+      <label class="form-label">Tip eveniment</label>
+      <input type="text" class="form-input" id="fEventType" placeholder="ex: Nuntă / Botez / Majorat / Corporate">
+    </div>
+    <div class="form-divider"></div>
+    <div class="form-group">
       <label class="form-label">Nume client *</label>
       <input type="text" class="form-input" id="fName" placeholder="ex: Ana Ionescu">
     </div>
@@ -906,6 +911,21 @@ function typeColor(t) {
   if (t==='video') return '#6b9fd4';
   return '#8a6bc4';
 }
+function eventTypeColor(et) {
+  if (!et) return null;
+  const e = et.toLowerCase().trim();
+  if (e.includes('nunt'))                                  return '#e53935'; // 🔴 roșu
+  if (e.includes('botez'))                                 return '#fb8c00'; // 🟠 portocaliu
+  if (e.includes('major'))                                 return '#8e24aa'; // 🟣 mov
+  if (e.includes('logod'))                                 return '#e91e63'; // 🩷 roz
+  if (e.includes('cunun'))                                 return '#c62828'; // 🔴 roșu închis
+  if (e.includes('corporate') || e.includes('corp'))      return '#1e88e5'; // 🔵 albastru
+  if (e.includes('party') || e.includes('petrecere'))     return '#00897b'; // 🟢 verde-teal
+  if (e.includes('aniversar') || e.includes('birthday'))  return '#f4511e'; // 🟠 portocaliu aprins
+  if (e.includes('craciun') || e.includes('revelion'))    return '#43a047'; // 🎄 verde
+  if (e.includes('paste') || e.includes('paști'))         return '#ffb300'; // 🟡 galben
+  return '#7986cb'; // 🔷 indigo — orice altceva
+}
 function typeLabel(t) {
   if (t==='foto') return '📷 Foto';
   if (t==='video') return '🎬 Video';
@@ -951,11 +971,19 @@ function makeCell(num, ds, otherMonth, isToday, isSelected) {
   div.appendChild(numEl);
   const dayBookings = bookings.filter(b => b.date === ds);
   if (dayBookings.length > 0) {
+    // Colorează celula după tipul primului eveniment
+    const evColor = eventTypeColor(dayBookings[0].eventType);
+    if (evColor && !isSelected) {
+      div.style.background = evColor + '28'; // fundal subtil ~16% opacitate
+      numEl.style.color = evColor;
+      numEl.style.fontWeight = '600';
+    }
     const dots = document.createElement('div');
     dots.className = 'cal-dots';
     [...new Set(dayBookings.map(b => b.type))].slice(0,3).forEach(t => {
       const s = document.createElement('span');
-      s.className = 'dot-'+(t||'foto');
+      s.style.background = isSelected ? 'var(--bg)' : (evColor || typeColor(t));
+      s.style.width = '4px'; s.style.height = '4px'; s.style.borderRadius = '50%';
       dots.appendChild(s);
     });
     div.appendChild(dots);
@@ -1074,6 +1102,7 @@ function openAdd(dateStr) {
   document.getElementById('fDate').value=dateStr||(selectedDate||toDateStr(new Date()));
   document.getElementById('fTime').value='';
   document.getElementById('fLocation').value='';
+  document.getElementById('fEventType').value='';
   document.getElementById('fPrice').value='';
   document.getElementById('fAdvance').value='';
   document.getElementById('fNotes').value='';
@@ -1094,6 +1123,7 @@ function openEdit(id) {
   document.getElementById('fDate').value=b.date||'';
   document.getElementById('fTime').value=b.time||'';
   document.getElementById('fLocation').value=b.location||'';
+  document.getElementById('fEventType').value=b.eventType||'';
   document.getElementById('fPrice').value=b.price||'';
   document.getElementById('fAdvance').value=b.advance||'';
   document.getElementById('fNotes').value=b.notes||'';
@@ -1133,6 +1163,7 @@ function saveBooking() {
     currency: selectedCurrency,
     avansIncasat: avansChecked,
     notes: document.getElementById('fNotes').value.trim(),
+    eventType: document.getElementById('fEventType').value.trim(),
   };
   const btn = document.getElementById('saveBookingBtn');
   btn.disabled=true; btn.textContent='Se salvează...';
@@ -1207,25 +1238,67 @@ async function exportJson() {
   const data={version:1,exportDate:new Date().toISOString(),bookings};
   const jsonStr=JSON.stringify(data,null,2);
   const fileName=`mcm-backup-${toDateStr(new Date())}.json`;
+  // 1. Încearcă share cu fișier
   if (navigator.share) {
     try {
       const file=new File([jsonStr],fileName,{type:'application/json'});
       if (navigator.canShare && navigator.canShare({files:[file]})) {
-        await navigator.share({files:[file],title:'MCM Backup',text:fileName});
+        await navigator.share({files:[file],title:'MCM Backup'});
         return;
       }
+    } catch(e) { if (e.name==='AbortError') return; }
+    // 2. Încearcă share text
+    try {
       await navigator.share({title:'MCM Backup – '+fileName,text:jsonStr});
       return;
-    } catch(e) {
-      if (e.name==='AbortError') return;
-    }
+    } catch(e) { if (e.name==='AbortError') return; }
   }
-  // Fallback browser download
-  const blob=new Blob([jsonStr],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=fileName; a.click();
-  URL.revokeObjectURL(url);
+  // 3. Fallback browser desktop
+  try {
+    const blob=new Blob([jsonStr],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=fileName; a.click();
+    URL.revokeObjectURL(url);
+    return;
+  } catch(e) {}
+  // 4. Fallback final: modal cu copy
+  showCopyModal(jsonStr, fileName);
+}
+
+function showCopyModal(text, fileName) {
+  const existing = document.getElementById('copyExportModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'copyExportModal';
+  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;padding:20px`;
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);flex:1;display:flex;flex-direction:column;overflow:hidden;max-height:100%">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold2)">💾 ${fileName}</span>
+        <span id="closeCopyModal" style="cursor:pointer;color:var(--text3);font-size:20px">✕</span>
+      </div>
+      <p style="padding:12px 20px 0;font-size:12px;color:var(--text2);line-height:1.5">Apasă <strong style="color:var(--gold)">Copiază tot</strong>, apoi lipește în Gmail, Google Drive, WhatsApp sau orice altă aplicație.</p>
+      <textarea id="copyExportText" readonly style="flex:1;margin:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:monospace;font-size:11px;padding:12px;resize:none;outline:none">${text.replace(/</g,'&lt;')}</textarea>
+      <div style="padding:0 12px 16px;display:flex;gap:8px">
+        <button id="copyExportBtn" style="flex:1;padding:14px;background:var(--gold);color:var(--bg);border:none;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer">📋 Copiază tot</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  // fix textarea content (bypass innerHTML escaping)
+  document.getElementById('copyExportText').value = text;
+  document.getElementById('closeCopyModal').onclick = () => modal.remove();
+  document.getElementById('copyExportBtn').onclick = async () => {
+    const ta = document.getElementById('copyExportText');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch(e) {
+      ta.select(); document.execCommand('copy');
+    }
+    const btn = document.getElementById('copyExportBtn');
+    btn.textContent = '✓ Copiat!'; btn.style.background='var(--success)';
+    setTimeout(()=>{ btn.textContent='📋 Copiază tot'; btn.style.background='var(--gold)'; },2000);
+  };
 }
 async function exportIcs() {
   function pad(n){return String(n).padStart(2,'0');}
