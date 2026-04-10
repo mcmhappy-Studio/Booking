@@ -18,8 +18,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Google Maps Places API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDtHTw_Wqx5O_hb8pGxSrmqDg6hlcuPOQM&libraries=places&language=ro&region=RO" async defer onload="initPlacesAutocomplete"></script>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -545,8 +545,6 @@
     transition: opacity 0.4s;
   }
   .sync-dot.visible { opacity: 1; }
-  .icon-btn.gcal-connected { border-color: #4a9e6f; color: #4a9e6f; }
-  .icon-btn.gcal-connected:hover { background: rgba(74,158,111,0.1); }
 
   .install-banner {
     margin: 10px 16px 0;
@@ -565,6 +563,30 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
   .form-divider { margin: 14px 20px 0; height: 1px; background: var(--border2); }
+
+  /* Google Places Autocomplete */
+  .pac-container {
+    background: var(--bg2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+    font-family: 'DM Sans', sans-serif !important;
+    margin-top: 4px !important;
+  }
+  .pac-item {
+    padding: 10px 14px !important;
+    border-top: 1px solid var(--border2) !important;
+    color: var(--text2) !important;
+    font-size: 13px !important;
+    cursor: pointer !important;
+    background: transparent !important;
+  }
+  .pac-item:first-child { border-top: none !important; }
+  .pac-item:hover, .pac-item-selected { background: var(--bg3) !important; }
+  .pac-item-query { color: var(--text) !important; font-size: 14px !important; }
+  .pac-matched { color: var(--gold) !important; font-weight: 500 !important; }
+  .pac-icon { display: none !important; }
+  .pac-logo::after { display: none !important; }
 </style>
 </head>
 <body>
@@ -606,7 +628,6 @@
       <div class="header-actions">
         <div class="icon-btn" id="searchToggleBtn" title="Caută">🔍</div>
         <div class="icon-btn" id="backupBtn" title="Backup">💾</div>
-        <div class="icon-btn" id="gcalBtn" title="Google Calendar" style="font-size:15px">📅</div>
         <div class="icon-btn" id="logoutBtn" title="Ieși din cont" style="font-size:14px">🚪</div>
         <div class="icon-btn add-btn" id="addBookingBtn" title="Rezervare nouă">+</div>
       </div>
@@ -820,127 +841,40 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// ── GOOGLE CALENDAR ───────────────────────────────────
-const GCAL_CLIENT_ID = '80733933841-2bfdrh88mcjf7aqqmv89irjlv7n287ce.apps.googleusercontent.com';
-const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
-let gcalToken = null;
-let gcalTokenClient = null;
 
-function initGoogleCalendar() {
-  if (!window.google) return;
-  gcalTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GCAL_CLIENT_ID,
-    scope: GCAL_SCOPE,
-    callback: (response) => {
-      if (response.error) { alert('Eroare conectare Google Calendar.'); return; }
-      gcalToken = response.access_token;
-      // Salvează token și expiry în localStorage
-      const expiry = Date.now() + (response.expires_in * 1000);
-      localStorage.setItem('gcal_token', gcalToken);
-      localStorage.setItem('gcal_expiry', expiry);
-      setGcalConnected(true);
-      alert('✅ Google Calendar conectat! Rezervările noi vor apărea automat.');
+// ── PLACES AUTOCOMPLETE ───────────────────────────────
+function initPlacesAutocomplete() {
+  const input = document.getElementById('fLocation');
+  if (!input || !window.google || !window.google.maps) return;
+  if (input._autocomplete) return; // deja inițializat
+  const autocomplete = new google.maps.places.Autocomplete(input, {
+    types: ['establishment', 'geocode'],
+    componentRestrictions: { country: 'ro' },
+    fields: ['formatted_address', 'name', 'geometry']
+  });
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace();
+    if (place.formatted_address) {
+      input.value = place.name && !place.formatted_address.startsWith(place.name)
+        ? place.name + ', ' + place.formatted_address
+        : place.formatted_address;
     }
   });
-  // Restaurează token dacă e valid
-  const savedToken = localStorage.getItem('gcal_token');
-  const savedExpiry = localStorage.getItem('gcal_expiry');
-  if (savedToken && savedExpiry && Date.now() < Number(savedExpiry)) {
-    gcalToken = savedToken;
-    setGcalConnected(true);
-  }
-}
-
-function setGcalConnected(connected) {
-  const btn = document.getElementById('gcalBtn');
-  if (!btn) return;
-  if (connected) {
-    btn.classList.add('gcal-connected');
-    btn.title = 'Google Calendar conectat ✓';
-  } else {
-    btn.classList.remove('gcal-connected');
-    btn.title = 'Google Calendar';
-  }
-}
-
-function isWebView() {
-  const ua = navigator.userAgent.toLowerCase();
-  return ua.includes('wv') || ua.includes('median') || (ua.includes('android') && !ua.includes('chrome'));
-}
-
-function connectGoogleCalendar() {
-  if (isWebView()) {
-    // Deschide browserul extern pentru autentificare Google
-    const returnUrl = encodeURIComponent(window.location.href);
-    window.open('https://mcmhappy-studio.github.io/Booking/?gcal=1', '_blank');
-    return;
-  }
-  if (!gcalTokenClient) {
-    setTimeout(() => { initGoogleCalendar(); if (gcalTokenClient) gcalTokenClient.requestAccessToken(); }, 500);
-    return;
-  }
-  if (gcalToken) {
-    if (confirm('Google Calendar este deja conectat. Deconectezi?')) {
-      gcalToken = null;
-      localStorage.removeItem('gcal_token');
-      localStorage.removeItem('gcal_expiry');
-      setGcalConnected(false);
-    }
-    return;
-  }
-  gcalTokenClient.requestAccessToken();
-}
-
-function addToGoogleCalendar(b) {
-  if (!gcalToken) return;
-  const typeName = b.type==='foto'?'Foto':b.type==='video'?'Video':'Foto+Video';
-  const timeStr = b.time || '10:00';
-  const startDt = `${b.date}T${timeStr}:00`;
-  const endDate = new Date(`${b.date}T${timeStr}:00`);
-  endDate.setHours(endDate.getHours() + 1);
-  const endDt = endDate.toISOString().slice(0,19);
-  const pret = b.price ? `Preț: ${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}` : '';
-  const avans = b.advance ? `Avans: ${Number(b.advance).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}` : '';
-  const desc = [typeName, b.phone?'Tel: '+b.phone:'', b.email?'Email: '+b.email:'', pret, avans, b.notes?'Note: '+b.notes:''].filter(Boolean).join('\n');
-  const event = {
-    summary: `${b.name} — ${typeName}`,
-    location: b.location || '',
-    description: desc,
-    start: { dateTime: startDt, timeZone: 'Europe/Bucharest' },
-    end: { dateTime: endDt, timeZone: 'Europe/Bucharest' }
-  };
-  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + gcalToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify(event)
-  }).then(r => {
-    if (r.status === 401) {
-      gcalToken = null;
-      localStorage.removeItem('gcal_token');
-      localStorage.removeItem('gcal_expiry');
-      setGcalConnected(false);
-    }
-  }).catch(err => console.error('GCal error:', err));
+  input._autocomplete = autocomplete;
 }
 
 window.addEventListener('load', () => {
-  // Wait for GIS to load
-  const tryInit = setInterval(() => {
-    if (window.google && window.google.accounts) {
-      initGoogleCalendar();
-      clearInterval(tryInit);
-      // Dacă s-a deschis din APK pentru autentificare Google Calendar
-      if (new URLSearchParams(window.location.search).get('gcal') === '1') {
-        setTimeout(() => {
-          if (gcalToken) {
-            alert('✅ Google Calendar deja conectat!');
-          } else if (gcalTokenClient) {
-            gcalTokenClient.requestAccessToken();
-          }
-        }, 1000);
+  // Inițializează Places după ce Maps API s-a încărcat
+  if (window.google && window.google.maps) {
+    initPlacesAutocomplete();
+  } else {
+    const t = setInterval(() => {
+      if (window.google && window.google.maps) {
+        initPlacesAutocomplete();
+        clearInterval(t);
       }
-    }
-  }, 300);
+    }, 300);
+  }
 });
 
 // ── STATE ─────────────────────────────────────────────
@@ -1280,7 +1214,13 @@ function openEdit(id) {
   openModal();
 }
 
-function openModal() { document.getElementById('bookingModal').classList.add('open'); }
+function openModal() {
+  document.getElementById('bookingModal').classList.add('open');
+  // Re-inițializează autocomplete dacă nu e deja atașat
+  if (window.google && window.google.maps && !document.getElementById('fLocation')._autocomplete) {
+    initPlacesAutocomplete();
+  }
+}
 function closeModal() { document.getElementById('bookingModal').classList.remove('open'); }
 
 function updateTypeUI() {
@@ -1317,7 +1257,6 @@ function saveBooking() {
   btn.disabled=true; btn.textContent='Se salvează...';
   db.collection('bookings').doc(b.id).set(b)
     .then(() => {
-      if (!editingId) addToGoogleCalendar(b); // doar la rezervări noi
       selectedDate=date;
       currentDate=new Date(date+'T00:00:00');
       closeModal();
@@ -1547,7 +1486,6 @@ document.getElementById('searchToggleBtn').addEventListener('click',openSearch);
 document.getElementById('closeSearchBtn').addEventListener('click',closeSearch);
 document.getElementById('globalSearchInput').addEventListener('input',e=>doGlobalSearch(e.target.value));
 document.getElementById('backupBtn').addEventListener('click',openBackup);
-document.getElementById('gcalBtn').addEventListener('click',connectGoogleCalendar);
 document.getElementById('closeBackupModal').addEventListener('click',()=>document.getElementById('backupModal').classList.remove('open'));
 document.getElementById('backupModal').addEventListener('click',e=>{ if(e.target===document.getElementById('backupModal')) document.getElementById('backupModal').classList.remove('open'); });
 document.getElementById('exportJsonBtn').addEventListener('click',exportJson);
