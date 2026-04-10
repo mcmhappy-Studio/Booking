@@ -1095,6 +1095,10 @@ function renderDayDetail() {
       <div class="booking-info">
         <div class="booking-name">${b.eventType?`<span style="font-size:11px;color:var(--text3);font-weight:400;margin-right:6px;text-transform:uppercase;letter-spacing:.05em">${b.eventType}</span>`:''}${b.name}</div>
         <div class="booking-meta">${b.time?b.time+' · ':''}${typeLabel(b.type)}${b.location?' · '+b.location:''}</div>
+        ${b.phone?`<div style="display:flex;gap:6px;margin-top:6px">
+          <a href="tel:${b.phone}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;font-size:12px;color:var(--text2);text-decoration:none">📞 Sună</a>
+          <a href="https://wa.me/${b.phone.replace(/[\s\+\-]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.25);border-radius:20px;font-size:12px;color:#25d366;text-decoration:none">💬 WhatsApp</a>
+        </div>`:''}
       </div>
       ${b.price?`<div class="booking-price">${Number(b.price).toLocaleString('ro-RO')} ${b.currency==='eur'?'€':'lei'}</div>`:''}
     </div>
@@ -1132,6 +1136,10 @@ function renderClients(filter='') {
         <div class="client-info">
           <div class="client-name">${c.name}</div>
           <div class="client-sub">${c.phone||c.email||'—'} · ${c.bookings.length} ședință${c.bookings.length!==1?'e':''}</div>
+          ${c.phone?`<div style="display:flex;gap:6px;margin-top:6px">
+            <a href="tel:${c.phone}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;font-size:12px;color:var(--text2);text-decoration:none">📞 Sună</a>
+            <a href="https://wa.me/${c.phone.replace(/[\s\+\-]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.25);border-radius:20px;font-size:12px;color:#25d366;text-decoration:none">💬 WhatsApp</a>
+          </div>`:''}
         </div>
         <span class="client-badge badge-${badgeClass}">${types.map(typeLabel).join(', ')}</span>
       </div>
@@ -1165,6 +1173,10 @@ function renderUpcoming(filterName='') {
         <div class="client-info">
           <div class="client-name">${b.eventType?`<span style="font-size:10px;color:var(--text3);font-weight:400;margin-right:5px;text-transform:uppercase;letter-spacing:.05em">${b.eventType}</span>`:''}${b.name}</div>
           <div class="client-sub">${b.time||'—'} ${b.location?'· '+b.location:''}</div>
+          ${b.phone?`<div style="display:flex;gap:6px;margin-top:6px">
+            <a href="tel:${b.phone}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;font-size:12px;color:var(--text2);text-decoration:none">📞 Sună</a>
+            <a href="https://wa.me/${b.phone.replace(/[\s\+\-]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.25);border-radius:20px;font-size:12px;color:#25d366;text-decoration:none">💬 WhatsApp</a>
+          </div>`:''}
         </div>
         ${b.price?`<div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold);font-weight:600">${Number(b.price).toLocaleString('ro-RO')}<span style="font-size:11px;color:var(--text3)"> ${b.currency==='eur'?'€':'lei'}</span></div>`:''}
       </div>
