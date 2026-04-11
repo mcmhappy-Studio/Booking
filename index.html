@@ -587,6 +587,28 @@
   .pac-matched { color: var(--gold) !important; font-weight: 500 !important; }
   .pac-icon { display: none !important; }
   .pac-logo::after { display: none !important; }
+
+  /* Status rezervare */
+  .status-selector { display: flex; gap: 8px; padding: 0 20px; margin-top: 6px; }
+  .status-btn { flex:1; padding:9px 6px; border-radius:var(--radius-sm); border:1.5px solid var(--border2); background:var(--bg3); color:var(--text2); font-size:12px; font-weight:500; cursor:pointer; text-align:center; transition:all 0.15s; }
+  .status-btn.sel-confirmat { background:rgba(74,158,111,0.15); border-color:#4a9e6f; color:#4a9e6f; }
+  .status-btn.sel-anulat { background:rgba(212,90,74,0.15); border-color:var(--danger); color:var(--danger); }
+  .badge-status { font-size:10px; padding:2px 7px; border-radius:20px; font-weight:500; margin-left:4px; vertical-align:middle; }
+  .badge-status.confirmat { background:rgba(74,158,111,0.15); color:#4a9e6f; }
+  .badge-status.anulat { background:rgba(212,90,74,0.15); color:var(--danger); }
+
+  /* Grafic venituri */
+  .chart-wrap { margin:12px 16px 0; background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .chart-title { font-family:'Cormorant Garamond',serif; font-size:16px; color:var(--gold2); margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; }
+  .chart-bars { display:flex; align-items:flex-end; gap:6px; height:90px; }
+  .chart-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .chart-bar-lei { width:45%; border-radius:3px 3px 0 0; background:var(--gold); min-height:2px; }
+  .chart-bar-eur { width:45%; border-radius:3px 3px 0 0; background:#6b9fd4; min-height:2px; margin-left:2px; }
+  .chart-bars-inner { display:flex; align-items:flex-end; width:100%; height:100%; }
+  .chart-label { font-size:9px; color:var(--text3); margin-top:5px; text-align:center; }
+  .chart-legend { display:flex; gap:14px; margin-top:10px; }
+  .chart-legend span { font-size:11px; color:var(--text2); display:flex; align-items:center; gap:5px; }
+  .chart-legend i { width:10px; height:10px; border-radius:2px; display:inline-block; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -638,6 +660,7 @@
     <div class="tab active" data-tab="calendar">📅 Calendar</div>
     <div class="tab" data-tab="clients">👤 Clienți</div>
     <div class="tab" data-tab="upcoming">⏰ Urmează</div>
+    <div class="tab" data-tab="chart">📊 Grafic</div>
   </div>
 
   <div class="view" id="calendarView">
@@ -681,6 +704,27 @@
     <div class="clients-list" id="upcomingList"></div>
   </div>
 
+  <div class="view hidden" id="chartView">
+    <div class="chart-wrap">
+      <div class="chart-title">
+        <span>Venituri lunare</span>
+        <div style="display:flex;gap:6px">
+          <div id="chartPrev" style="cursor:pointer;color:var(--text3);padding:0 6px;font-size:18px">‹</div>
+          <span id="chartYear" style="font-size:14px;color:var(--text2);font-family:'DM Sans',sans-serif"></span>
+          <div id="chartNext" style="cursor:pointer;color:var(--text3);padding:0 6px;font-size:18px">›</div>
+        </div>
+      </div>
+      <div class="chart-bars" id="chartBars"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px" id="chartLabels"></div>
+      <div class="chart-legend">
+        <span><i style="background:var(--gold)"></i>Lei</span>
+        <span><i style="background:#6b9fd4"></i>Euro</span>
+      </div>
+      <div id="chartTotals" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    </div>
+    <div style="padding:12px 16px 0" id="chartAlerts"></div>
+  </div>
+
   <div class="global-search-bar" id="globalSearchBar" style="display:none">
     <div class="search-box" style="margin:10px 16px">
       <span class="search-icon">🔍</span>
@@ -706,6 +750,14 @@
         <div class="type-btn" data-type="video">🎬 Video</div>
         <div class="type-btn" data-type="ambele">✨ Ambele</div>
       </div>
+    </div>
+    <div class="form-divider"></div>
+    <div class="form-group">
+      <label class="form-label">Status rezervare</label>
+    </div>
+    <div class="status-selector">
+      <div class="status-btn" id="sConfirmat" data-status="confirmat">✅ Confirmat</div>
+      <div class="status-btn" id="sAnulat" data-status="anulat">❌ Anulat</div>
     </div>
     <div class="form-divider"></div>
     <div class="form-group">
@@ -883,10 +935,12 @@ let currentDate = new Date();
 let selectedDate = null;
 let editingId = null;
 let selectedType = null;
+let selectedStatus = 'tentativ';
 let avansChecked = false;
 let selectedCurrency = 'lei';
 let deferredPrompt = null;
 let unsubscribeSnapshot = null;
+let chartYear = new Date().getFullYear();
 
 // ── AUTH ──────────────────────────────────────────────
 auth.onAuthStateChanged(user => {
@@ -939,17 +993,133 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 function startSync() {
   selectedDate = toDateStr(new Date());
   renderCalendar();
+  requestNotifPermission();
   unsubscribeSnapshot = db.collection('bookings').onSnapshot(snapshot => {
     bookings = snapshot.docs.map(doc => doc.data());
     renderAll();
     flashSync();
+    scheduleReminders();
   }, err => console.error('Firestore:', err));
+  // Verifică backup săptămânal după 3 secunde
+  setTimeout(checkWeeklyBackup, 3000);
 }
 
 function flashSync() {
   const dot = document.getElementById('syncDot');
   dot.classList.add('visible');
   setTimeout(() => dot.classList.remove('visible'), 1500);
+}
+
+// ── STATUS ────────────────────────────────────────────
+function updateStatusUI() {
+  document.querySelectorAll('.status-btn').forEach(btn => {
+    btn.className = 'status-btn' + (btn.dataset.status === selectedStatus ? ' sel-' + selectedStatus : '');
+  });
+}
+function statusBadge(status) {
+  if (!status || status === 'confirmat') return '';
+  if (status === 'anulat') return `<span class="badge-status anulat">❌ Anulat</span>`;
+  return '';
+}
+
+// ── NOTIFICĂRI PUSH ───────────────────────────────────
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') await Notification.requestPermission();
+}
+
+function scheduleReminders() {
+  if (Notification.permission !== 'granted') return;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = toDateStr(tomorrow);
+  const tomorrowBookings = bookings.filter(b => b.date === tomorrowStr && b.status !== 'anulat');
+  tomorrowBookings.forEach(b => {
+    const key = 'notif_' + b.id + '_' + tomorrowStr;
+    if (localStorage.getItem(key)) return;
+    new Notification('📅 MCM Happy Studio', {
+      body: `Mâine: ${b.eventType ? b.eventType + ' · ' : ''}${b.name}${b.time ? ' la ' + b.time : ''}${b.location ? ' · ' + b.location : ''}`,
+      icon: 'icon-192.png'
+    });
+    localStorage.setItem(key, '1');
+  });
+}
+
+// ── ALERTĂ ZI DUBLĂ ───────────────────────────────────
+function checkDoubleBookings() {
+  const counts = {};
+  bookings.filter(b => b.status !== 'anulat').forEach(b => {
+    counts[b.date] = (counts[b.date] || 0) + 1;
+  });
+  return Object.entries(counts).filter(([,n]) => n >= 2).map(([d]) => d);
+}
+
+// ── GRAFIC VENITURI ───────────────────────────────────
+function renderChart() {
+  const months = ['Ian','Feb','Mar','Apr','Mai','Iun','Iul','Aug','Sep','Oct','Nov','Dec'];
+  const dataLei = Array(12).fill(0);
+  const dataEur = Array(12).fill(0);
+  bookings.filter(b => b.status !== 'anulat').forEach(b => {
+    if (!b.date || !b.date.startsWith(String(chartYear))) return;
+    const m = parseInt(b.date.split('-')[1]) - 1;
+    const price = Number(b.price) || 0;
+    if (b.currency === 'eur') dataEur[m] += price;
+    else dataLei[m] += price;
+  });
+  const maxLei = Math.max(...dataLei, 1);
+  const maxEur = Math.max(...dataEur, 1);
+  const maxAll = Math.max(maxLei, maxEur * 5, 1); // aproximare conversie
+  document.getElementById('chartYear').textContent = chartYear;
+  const barsEl = document.getElementById('chartBars');
+  const labelsEl = document.getElementById('chartLabels');
+  barsEl.innerHTML = months.map((m, i) => {
+    const hLei = Math.round((dataLei[i] / maxAll) * 90);
+    const hEur = Math.round((dataEur[i] / (maxAll/5)) * 90);
+    return `<div class="chart-col">
+      <div style="display:flex;align-items:flex-end;gap:1px;width:100%;height:90px;justify-content:center">
+        ${dataLei[i] ? `<div class="chart-bar-lei" style="height:${Math.max(hLei,2)}px" title="${dataLei[i].toLocaleString('ro-RO')} lei"></div>` : '<div style="width:45%"></div>'}
+        ${dataEur[i] ? `<div class="chart-bar-eur" style="height:${Math.max(hEur,2)}px" title="${dataEur[i].toLocaleString('ro-RO')} €"></div>` : '<div style="width:45%"></div>'}
+      </div>
+    </div>`;
+  }).join('');
+  labelsEl.innerHTML = months.map(m => `<div style="font-size:9px;color:var(--text3);flex:1;text-align:center">${m}</div>`).join('');
+  const totalLei = dataLei.reduce((a,b)=>a+b,0);
+  const totalEur = dataEur.reduce((a,b)=>a+b,0);
+  document.getElementById('chartTotals').innerHTML = `
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px;text-align:center">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold);font-weight:600">${totalLei.toLocaleString('ro-RO')}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">Total Lei ${chartYear}</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px;text-align:center">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:#6b9fd4;font-weight:600">${totalEur.toLocaleString('ro-RO')}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">Total Euro ${chartYear}</div>
+    </div>`;
+  // Alerte zi dublă
+  const doubles = checkDoubleBookings().filter(d => d.startsWith(String(chartYear)));
+  const alertsEl = document.getElementById('chartAlerts');
+  if (doubles.length) {
+    alertsEl.innerHTML = doubles.map(d => `
+      <div style="background:rgba(212,90,74,0.1);border:1px solid rgba(212,90,74,0.3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;font-size:13px;color:var(--danger)">
+        ⚠️ Zi dublă: <strong>${formatDate(d)}</strong> — ${bookings.filter(b=>b.date===d&&b.status!=='anulat').length} rezervări
+      </div>`).join('');
+  } else {
+    alertsEl.innerHTML = '';
+  }
+}
+
+// ── BACKUP EMAIL ──────────────────────────────────────
+function checkWeeklyBackup() {
+  const lastBackup = localStorage.getItem('lastEmailBackup');
+  const now = Date.now();
+  const week = 7 * 24 * 60 * 60 * 1000;
+  if (lastBackup && now - Number(lastBackup) < week) return;
+  const user = auth.currentUser;
+  if (!user || !user.email) return;
+  const data = JSON.stringify({version:1, exportDate:new Date().toISOString(), bookings}, null, 2);
+  const subject = encodeURIComponent(`MCM Backup automat ${toDateStr(new Date())}`);
+  const body = encodeURIComponent(`Backup automat săptămânal MCM Happy Studio.\n\nDeschide acest email pe desktop și salvează fișierul JSON atașat mai jos:\n\n${data.slice(0, 2000)}...\n\n(Folosește butonul 💾 Backup din aplicație pentru export complet)`);
+  window.open(`mailto:${user.email}?subject=${subject}&body=${body}`);
+  localStorage.setItem('lastEmailBackup', String(now));
 }
 
 // ── HELPERS ───────────────────────────────────────────
@@ -1090,10 +1260,10 @@ function renderDayDetail() {
   const items = document.getElementById('dayDetailItems');
   if (!dayBookings.length) { items.innerHTML = '<div class="no-bookings">Nicio rezervare în această zi</div>'; return; }
   items.innerHTML = dayBookings.map(b => `
-    <div class="booking-item" onclick="openEdit('${b.id}')">
+    <div class="booking-item" onclick="openEdit('${b.id}')" style="${b.status==='anulat'?'opacity:0.5':''}">
       <div class="booking-color-bar" style="background:${typeColor(b.type)}"></div>
       <div class="booking-info">
-        <div class="booking-name">${b.eventType?`<span style="font-size:11px;color:var(--text3);font-weight:400;margin-right:6px;text-transform:uppercase;letter-spacing:.05em">${b.eventType}</span>`:''}${b.name}</div>
+        <div class="booking-name">${b.eventType?`<span style="font-size:11px;color:var(--text3);font-weight:400;margin-right:6px;text-transform:uppercase;letter-spacing:.05em">${b.eventType}</span>`:''}${b.name}${statusBadge(b.status)}</div>
         <div class="booking-meta">${b.time?b.time+' · ':''}${typeLabel(b.type)}${b.location?' · '+b.location:''}</div>
         ${b.phone?`<div style="display:flex;gap:6px;margin-top:6px">
           <a href="tel:${b.phone}" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;font-size:12px;color:var(--text2);text-decoration:none">📞 Sună</a>
@@ -1187,7 +1357,7 @@ function renderUpcoming(filterName='') {
 
 // ── MODAL ─────────────────────────────────────────────
 function openAdd(dateStr) {
-  editingId=null; selectedType='foto'; avansChecked=false;
+  editingId=null; selectedType='foto'; avansChecked=false; selectedStatus='confirmat';
   document.getElementById('modalTitle').textContent='Rezervare nouă';
   document.getElementById('deleteBookingBtn').style.display='none';
   document.getElementById('fEventType').value='';
@@ -1201,14 +1371,14 @@ function openAdd(dateStr) {
   document.getElementById('fAdvance').value='';
   document.getElementById('fNotes').value='';
   selectedCurrency='lei';
-  updateTypeUI(); updateCurrencyUI(); updateAvansUI();
+  updateTypeUI(); updateCurrencyUI(); updateAvansUI(); updateStatusUI();
   openModal();
 }
 
 function openEdit(id) {
   const b = bookings.find(x=>x.id===id);
   if (!b) return;
-  editingId=id; selectedType=b.type||'foto'; avansChecked=!!b.avansIncasat;
+  editingId=id; selectedType=b.type||'foto'; avansChecked=!!b.avansIncasat; selectedStatus=b.status||'confirmat';
   document.getElementById('modalTitle').textContent='Editează rezervarea';
   document.getElementById('deleteBookingBtn').style.display='';
   document.getElementById('fEventType').value=b.eventType||'';
@@ -1222,7 +1392,7 @@ function openEdit(id) {
   document.getElementById('fAdvance').value=b.advance||'';
   document.getElementById('fNotes').value=b.notes||'';
   selectedCurrency=b.currency||'lei';
-  updateTypeUI(); updateCurrencyUI(); updateAvansUI();
+  updateTypeUI(); updateCurrencyUI(); updateAvansUI(); updateStatusUI();
   openModal();
 }
 
@@ -1264,6 +1434,7 @@ function saveBooking() {
     currency: selectedCurrency,
     avansIncasat: avansChecked,
     notes: document.getElementById('fNotes').value.trim(),
+    status: selectedStatus,
   };
   const btn = document.getElementById('saveBookingBtn');
   btn.disabled=true; btn.textContent='Se salvează...';
@@ -1469,17 +1640,25 @@ function switchTab(tab) {
   document.getElementById('calendarView').classList.toggle('hidden',tab!=='calendar');
   document.getElementById('clientsView').classList.toggle('hidden',tab!=='clients');
   document.getElementById('upcomingView').classList.toggle('hidden',tab!=='upcoming');
+  document.getElementById('chartView').classList.toggle('hidden',tab!=='chart');
   if (tab==='clients') renderClients();
   if (tab==='upcoming') renderUpcoming();
+  if (tab==='chart') renderChart();
 }
 function renderAll() {
   renderCalendar();
   const activeTab=document.querySelector('.tab.active')?.dataset.tab;
   if (activeTab==='clients') renderClients();
   if (activeTab==='upcoming') renderUpcoming();
+  if (activeTab==='chart') renderChart();
 }
 
 // ── EVENTS ────────────────────────────────────────────
+document.querySelectorAll('.status-btn').forEach(btn=>btn.addEventListener('click',()=>{ selectedStatus=btn.dataset.status; updateStatusUI(); }));
+
+document.getElementById('chartPrev').addEventListener('click',()=>{ chartYear--; renderChart(); });
+document.getElementById('chartNext').addEventListener('click',()=>{ chartYear++; renderChart(); });
+
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
 document.getElementById('prevMonth').addEventListener('click',()=>{ currentDate.setMonth(currentDate.getMonth()-1); selectedDate=null; renderCalendar(); });
 document.getElementById('nextMonth').addEventListener('click',()=>{ currentDate.setMonth(currentDate.getMonth()+1); selectedDate=null; renderCalendar(); });
