@@ -935,7 +935,7 @@ let currentDate = new Date();
 let selectedDate = null;
 let editingId = null;
 let selectedType = null;
-let selectedStatus = 'tentativ';
+let selectedStatus = 'confirmat';
 let avansChecked = false;
 let selectedCurrency = 'lei';
 let deferredPrompt = null;
@@ -1695,7 +1695,9 @@ window.addEventListener('beforeinstallprompt',e=>{
 });
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    reg.update(); // forțează verificarea noii versiuni
+  }).catch(()=>{});
 }
 </script>
 </body>
