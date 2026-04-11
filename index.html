@@ -697,6 +697,7 @@
       <input type="text" id="clientSearch" placeholder="Caută client...">
     </div>
     <div class="stats-row" id="statsRow"></div>
+    <div id="restTotalCard" style="display:none;margin:10px 16px 0;background:var(--bg2);border:1px solid rgba(212,90,74,0.3);border-radius:var(--radius);padding:14px 16px"></div>
     <div class="clients-list" id="clientsList"></div>
   </div>
 
@@ -1289,11 +1290,42 @@ function renderClients(filter='') {
   const totalRevLei = bookings.filter(b=>b.currency!=='eur').reduce((s,b)=>s+(Number(b.price)||0),0);
   const totalRevEur = bookings.filter(b=>b.currency==='eur').reduce((s,b)=>s+(Number(b.price)||0),0);
   let revDisplay = totalRevLei>0&&totalRevEur>0 ? `${(totalRevLei/1000).toFixed(1)}k+` : totalRevEur>0 ? `${totalRevEur.toLocaleString('ro-RO')}€` : `${(totalRevLei/1000).toFixed(1)}k`;
+
+  // Rest de încasat = preț - avans, doar rezervări neîncasate complet și neânulate
+  const restLei = bookings.filter(b=>b.currency!=='eur'&&b.status!=='anulat'&&!b.avansIncasat)
+    .reduce((s,b)=>s+(Math.max(0,(Number(b.price)||0)-(Number(b.advance)||0))),0)
+    + bookings.filter(b=>b.currency!=='eur'&&b.status!=='anulat'&&b.avansIncasat)
+    .reduce((s,b)=>s+(Math.max(0,(Number(b.price)||0)-(Number(b.advance)||0))),0);
+  const restEur = bookings.filter(b=>b.currency==='eur'&&b.status!=='anulat')
+    .reduce((s,b)=>s+(Math.max(0,(Number(b.price)||0)-(Number(b.advance)||0))),0);
+
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-card"><div class="stat-val">${Object.keys(clients).length}</div><div class="stat-lbl">Clienți</div></div>
     <div class="stat-card"><div class="stat-val">${bookings.length}</div><div class="stat-lbl">Rezervări</div></div>
     <div class="stat-card"><div class="stat-val">${revDisplay}</div><div class="stat-lbl">Venituri</div></div>
   `;
+
+  // Card rest total de încasat
+  const hasRest = restLei > 0 || restEur > 0;
+  const restEl = document.getElementById('restTotalCard');
+  if (hasRest) {
+    const restParts = [
+      restLei > 0 ? `<span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--danger)">${restLei.toLocaleString('ro-RO')}<span style="font-size:14px;margin-left:3px">lei</span></span>` : '',
+      restEur > 0 ? `<span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--danger)">${restEur.toLocaleString('ro-RO')}<span style="font-size:14px;margin-left:3px">€</span></span>` : ''
+    ].filter(Boolean).join('<span style="color:var(--text3);margin:0 8px;font-size:18px">+</span>');
+    restEl.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">💰 Rest total de încasat</div>
+          <div style="display:flex;align-items:center;gap:4px">${restParts}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);text-align:right">din ${bookings.filter(b=>b.status!=='anulat'&&((Number(b.price)||0)>(Number(b.advance)||0))).length} rezervări</div>
+      </div>`;
+    restEl.style.display = 'block';
+  } else {
+    restEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">✅</span><div><div style="font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Rest de încasat</div><div style="font-size:13px;color:var(--success);margin-top:2px">Totul încasat!</div></div></div>`;
+    restEl.style.display = 'block';
+  }
   const el = document.getElementById('clientsList');
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📷</div><p>Niciun client încă.<br>Adaugă prima rezervare!</p></div>'; return; }
   el.innerHTML = list.map(c => {
