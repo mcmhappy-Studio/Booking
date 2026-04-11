@@ -776,9 +776,8 @@
         <option value="Ședință foto">📷 Ședință foto</option>
         <option value="Corporate">💼 Corporate</option>
         <option value="Familie">👨‍👩‍👧 Familie</option>
-        <option value="Portret">🎭 Portret</option>
         <option value="Petrecere">🎉 Petrecere</option>
-        <option value="Altele">✏️ Altele</option>
+        <option value="Banchet scolar">🎓 Banchet scolar</option>
       </select>
     </div>
     <div class="form-group">
@@ -1176,9 +1175,9 @@ function eventTypeColor(et) {
     case 'Ședință foto':       return '#a1887f'; // 🟤 Bronze (actualizat)
     case 'Corporate':          return '#1e88e5'; // 💼 Blue (rămâne)
     case 'Familie':            return '#43a047'; // 🟢 Verde (rămâne)
-    case 'Portret':            return '#7986cb'; // 🟣 Violet (rămâne)
     case 'Petrecere':          return '#00897b'; // 🎉 Teal (rămâne)
-    default:                   return '#90a4ae'; // ⬜ Grey (rămâne)
+    case 'Banchet scolar':     return '#90a4ae'; // 🎓 Grey (nou)
+    default:                   return '#90a4ae'; // ⬜ Grey (default)
   }
 }
 function typeLabel(t) {
