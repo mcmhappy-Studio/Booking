@@ -875,6 +875,10 @@
         </label>
         <div id="importStatus" style="font-size:12px;margin-top:8px;display:none"></div>
       </div>
+      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-top:10px">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:8px">🩺 Stare aplicație</div>
+        <div id="appStatus" style="font-size:12px;color:var(--text2);line-height:1.9">Se verifică...</div>
+      </div>
     </div>
     <div style="height:20px"></div>
   </div>
@@ -1611,11 +1615,66 @@ function openBackup() {
   const total=bookings.length, clients=new Set(bookings.map(b=>b.name)).size;
   document.getElementById('exportInfo').textContent=`${total} rezervări · ${clients} clienți`;
   document.getElementById('importStatus').style.display='none';
+  document.getElementById('appStatus').textContent = 'Se verifică...';
   document.getElementById('backupModal').classList.add('open');
   pushOverlay(hideBackupModal);
+  updateAppStatus();
 }
 function hideBackupModal() { document.getElementById('backupModal').classList.remove('open'); }
 function closeBackup() { dismissOverlay(); }
+
+// ── DIAGNOSTIC ────────────────────────────────────────
+// In APK-ul GoNative nu se pot deschide DevTools (enableWebConsoleLogs = false),
+// deci aplicatia isi raporteaza singura starea, direct pe telefon.
+function statusLine(icon, label, ok, detail) {
+  const color = ok === null ? 'var(--text3)' : ok ? 'var(--success)' : 'var(--danger)';
+  const mark  = ok === null ? '•' : ok ? '✓' : '✗';
+  return `<div><span style="color:${color};font-weight:600">${mark}</span> ${icon} ${label}`
+       + (detail ? ` <span style="color:var(--text3)">· ${detail}</span>` : '') + `</div>`;
+}
+
+async function updateAppStatus() {
+  const el = document.getElementById('appStatus');
+  if (!el) return;
+  const rows = [];
+
+  // Mod offline = Service Worker activ CU cache popular. Doar "inregistrat" nu ajunge:
+  // exact asta era bug-ul vechi — SW aparent prezent, dar cu addAll esuat si cache gol.
+  let swOk = false, swDetail = 'neacceptat de browser';
+  // Verificare truthy, nu `'serviceWorker' in navigator`: in unele WebView-uri Android
+  // proprietatea exista dar e undefined, si atunci raportam gresit "eroare" in loc de "neacceptat".
+  if (navigator.serviceWorker && window.caches) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && reg.active) {
+        const mine = (await caches.keys()).find(n => n.startsWith('studio-booking'));
+        if (mine) {
+          const n = (await (await caches.open(mine)).keys()).length;
+          swOk = n > 0;
+          swDetail = n > 0 ? `${n} fișiere · ${mine.replace('studio-booking-','')}` : 'cache gol';
+        } else {
+          swDetail = 'activ, fără cache';
+        }
+      } else {
+        swDetail = reg ? 'se instalează…' : 'neinstalat';
+      }
+    } catch (e) { swDetail = 'eroare la verificare'; }
+  }
+  rows.push(statusLine('📴', 'Mod offline', swOk, swDetail));
+
+  let nOk = null, nDetail = 'neacceptate de browser';
+  if ('Notification' in window) {
+    const p = Notification.permission;
+    nOk = p === 'granted' ? true : p === 'denied' ? false : null;
+    nDetail = p === 'granted' ? 'permise' : p === 'denied' ? 'blocate din setări' : 'neconfirmate';
+  }
+  rows.push(statusLine('🔔', 'Notificări', nOk, nDetail));
+
+  rows.push(statusLine('🌐', 'Conexiune', navigator.onLine, navigator.onLine ? 'online' : 'offline'));
+  rows.push(statusLine('☁️', 'Sincronizare', !!auth.currentUser, auth.currentUser ? `${bookings.length} rezervări` : 'neconectat'));
+
+  el.innerHTML = rows.join('');
+}
 function showCopyModal(text, fileName) {
   const existing = document.getElementById('copyExportModal');
   if (existing) existing.remove();
