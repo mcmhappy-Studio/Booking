@@ -1030,21 +1030,32 @@ async function requestNotifPermission() {
   if (Notification.permission === 'default') await Notification.requestPermission();
 }
 
-function scheduleReminders() {
-  if (Notification.permission !== 'granted') return;
+// IMPORTANT: pe Android `new Notification()` aruncă excepție (constructor interzis).
+// Singura cale care merge pe mobil este ServiceWorkerRegistration.showNotification().
+async function scheduleReminders() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!('serviceWorker' in navigator)) return;
+  let reg;
+  try { reg = await navigator.serviceWorker.ready; } catch (e) { return; }
+  if (!reg || !reg.showNotification) return;
+
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toDateStr(tomorrow);
   const tomorrowBookings = bookings.filter(b => b.date === tomorrowStr && b.status !== 'anulat');
-  tomorrowBookings.forEach(b => {
+  for (const b of tomorrowBookings) {
     const key = 'notif_' + b.id + '_' + tomorrowStr;
-    if (localStorage.getItem(key)) return;
-    new Notification('📅 MCM Happy Studio', {
-      body: `Mâine: ${b.eventType ? b.eventType + ' · ' : ''}${b.name}${b.time ? ' la ' + b.time : ''}${b.location ? ' · ' + b.location : ''}`,
-      icon: 'icon-192.png'
-    });
-    localStorage.setItem(key, '1');
-  });
+    if (localStorage.getItem(key)) continue;
+    try {
+      await reg.showNotification('📅 MCM Happy Studio', {
+        body: `Mâine: ${b.eventType ? b.eventType + ' · ' : ''}${b.name}${b.time ? ' la ' + b.time : ''}${b.location ? ' · ' + b.location : ''}`,
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        tag: key
+      });
+      localStorage.setItem(key, '1');
+    } catch (e) { console.warn('Notificare eșuată:', e); }
+  }
 }
 
 // ── ALERTĂ ZI DUBLĂ ───────────────────────────────────
@@ -1465,14 +1476,39 @@ function openEdit(id) {
   openModal();
 }
 
+// ── OVERLAY STACK / BUTON BACK ANDROID ────────────────
+// Fiecare overlay deschis împinge o intrare în history. Butonul Back al Android
+// declanșează popstate și închide overlay-ul de deasupra, în loc să iasă din aplicație
+// (și să piardă tot ce s-a completat în formular).
+// Invariant: overlayStack.length === numărul de intrări history împinse de noi.
+const overlayStack = [];
+
+function pushOverlay(hideFn) {
+  overlayStack.push(hideFn);
+  history.pushState({ mcmOverlay: overlayStack.length }, '');
+}
+
+// Închiderea din UI (X, tap pe fundal, după salvare) merge tot prin history,
+// ca stiva și istoricul browserului să rămână sincronizate.
+function dismissOverlay() {
+  if (overlayStack.length) history.back();
+}
+
+window.addEventListener('popstate', () => {
+  const hide = overlayStack.pop();
+  if (hide) hide();
+});
+
 function openModal() {
   document.getElementById('bookingModal').classList.add('open');
   // Re-inițializează autocomplete dacă nu e deja atașat
   if (window.google && window.google.maps && !document.getElementById('fLocation')._autocomplete) {
     initPlacesAutocomplete();
   }
+  pushOverlay(hideBookingModal);
 }
-function closeModal() { document.getElementById('bookingModal').classList.remove('open'); }
+function hideBookingModal() { document.getElementById('bookingModal').classList.remove('open'); }
+function closeModal() { dismissOverlay(); }
 
 function updateTypeUI() {
   document.querySelectorAll('.type-btn').forEach(btn => {
@@ -1535,12 +1571,14 @@ function deleteBooking() {
 function openSearch() {
   document.getElementById('globalSearchBar').style.display='block';
   setTimeout(()=>document.getElementById('globalSearchInput').focus(),100);
+  pushOverlay(hideSearch);
 }
-function closeSearch() {
+function hideSearch() {
   document.getElementById('globalSearchBar').style.display='none';
   document.getElementById('globalSearchInput').value='';
   document.getElementById('globalSearchResults').innerHTML='';
 }
+function closeSearch() { dismissOverlay(); }
 function doGlobalSearch(q) {
   const el = document.getElementById('globalSearchResults');
   if (!q.trim()) { el.innerHTML=''; return; }
@@ -1555,7 +1593,7 @@ function doGlobalSearch(q) {
   ).sort((a,b)=>b.date.localeCompare(a.date));
   if (!results.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon" style="font-size:32px">🔍</div><p>Niciun rezultat găsit</p></div>'; return; }
   el.innerHTML = results.map(b=>`
-    <div class="client-card" onclick="closeSearch();openEdit('${b.id}')">
+    <div class="client-card" onclick="openEdit('${b.id}')">
       <div class="client-avatar" style="background:${typeColor(b.type)}22;border-color:${typeColor(b.type)}44;">
         <span style="font-size:18px">${b.type==='video'?'🎬':b.type==='ambele'?'✨':'📷'}</span>
       </div>
@@ -1574,7 +1612,10 @@ function openBackup() {
   document.getElementById('exportInfo').textContent=`${total} rezervări · ${clients} clienți`;
   document.getElementById('importStatus').style.display='none';
   document.getElementById('backupModal').classList.add('open');
+  pushOverlay(hideBackupModal);
 }
+function hideBackupModal() { document.getElementById('backupModal').classList.remove('open'); }
+function closeBackup() { dismissOverlay(); }
 function showCopyModal(text, fileName) {
   const existing = document.getElementById('copyExportModal');
   if (existing) existing.remove();
@@ -1597,7 +1638,7 @@ function showCopyModal(text, fileName) {
     </div>`;
   document.body.appendChild(modal);
   document.getElementById('copyExportText').value = text;
-  document.getElementById('closeCopyModal').onclick = () => modal.remove();
+  document.getElementById('closeCopyModal').onclick = closeCopyModal;
   document.getElementById('copyExportBtn').onclick = async () => {
     try { await navigator.clipboard.writeText(text); }
     catch(e) { const ta=document.getElementById('copyExportText'); ta.select(); document.execCommand('copy'); }
@@ -1605,7 +1646,15 @@ function showCopyModal(text, fileName) {
     btn.textContent='✓ Copiat!'; btn.style.background='var(--success)';
     setTimeout(()=>{ btn.textContent='📋 Copiază tot'; btn.style.background='var(--gold)'; },2500);
   };
+  // Dacă am înlocuit un modal deja deschis, refolosim intrarea lui din history.
+  // Un push nou ar strica invariantul overlayStack.length === nr. intrări împinse.
+  if (!existing) pushOverlay(hideCopyModal);
 }
+function hideCopyModal() {
+  const m = document.getElementById('copyExportModal');
+  if (m) m.remove();
+}
+function closeCopyModal() { dismissOverlay(); }
 
 async function downloadFile(content, filename, mimeType) {
   // 1. Web Share API cu fișier
@@ -1746,8 +1795,8 @@ document.getElementById('searchToggleBtn').addEventListener('click',openSearch);
 document.getElementById('closeSearchBtn').addEventListener('click',closeSearch);
 document.getElementById('globalSearchInput').addEventListener('input',e=>doGlobalSearch(e.target.value));
 document.getElementById('backupBtn').addEventListener('click',openBackup);
-document.getElementById('closeBackupModal').addEventListener('click',()=>document.getElementById('backupModal').classList.remove('open'));
-document.getElementById('backupModal').addEventListener('click',e=>{ if(e.target===document.getElementById('backupModal')) document.getElementById('backupModal').classList.remove('open'); });
+document.getElementById('closeBackupModal').addEventListener('click',closeBackup);
+document.getElementById('backupModal').addEventListener('click',e=>{ if(e.target===document.getElementById('backupModal')) closeBackup(); });
 document.getElementById('exportJsonBtn').addEventListener('click',exportJson);
 document.getElementById('exportIcsBtn').addEventListener('click',exportIcs);
 document.getElementById('importFileInput').addEventListener('change',e=>{ if(e.target.files[0]) importJson(e.target.files[0]); });

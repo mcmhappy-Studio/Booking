@@ -1,5 +1,7 @@
-const CACHE = 'studio-booking-v2';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'studio-booking-v3';
+// Path-uri RELATIVE: aplicația e servită sub /Booking/, nu la rădăcina domeniului.
+// Cu path-uri absolute ('/index.html') addAll dă 404 și instalarea SW eșuează complet.
+const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -10,6 +12,9 @@ self.addEventListener('activate', e => {
     Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
   ).then(() => self.clients.claim()));
 });
+
+// Fallback offline pentru navigare — relativ la scope-ul SW-ului
+const OFFLINE_FALLBACK = new URL('./index.html', self.registration.scope).href;
 
 // Helper: detectează request-uri pentru HTML/navigare (care trebuie să fie mereu proaspete)
 function isHtmlRequest(req) {
@@ -36,7 +41,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => caches.match(e.request).then(c => c || caches.match('/index.html')))
+      }).catch(() => caches.match(e.request).then(c => c || caches.match(OFFLINE_FALLBACK)))
     );
   } else {
     // CACHE-FIRST pentru assets (iconițe, manifest, sw.js) — sunt statice
@@ -53,4 +58,15 @@ self.addEventListener('fetch', e => {
       })
     );
   }
+});
+
+// Tap pe notificare → aduce aplicația în față
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(self.registration.scope);
+    })
+  );
 });
