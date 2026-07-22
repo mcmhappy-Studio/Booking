@@ -533,18 +533,24 @@
     margin: 0 auto;
   }
 
-  /* Sync dot */
+  /* Sync dot — led de stare permanent */
   .sync-dot {
     width: 7px; height: 7px;
     border-radius: 50%;
-    background: var(--success);
+    background: var(--text3);            /* gri implicit, pana la prima conectare */
     display: inline-block;
     margin-left: 6px;
     vertical-align: middle;
-    opacity: 0;
-    transition: opacity 0.4s;
+    opacity: 1;
+    transition: background-color 0.4s;
   }
-  .sync-dot.visible { opacity: 1; }
+  .sync-dot.online  { background: var(--success); }
+  .sync-dot.offline { background: var(--text3); }
+  .sync-dot.pulse   { animation: syncPulse 1.2s ease-out; }
+  @keyframes syncPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(74,158,111,0.55); }
+    100% { box-shadow: 0 0 0 7px rgba(74,158,111,0); }
+  }
 
   .install-banner {
     margin: 10px 16px 0;
@@ -998,22 +1004,36 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 // ── FIRESTORE SYNC ─────────────────────────────────────
 function startSync() {
   selectedDate = toDateStr(new Date());
+  setSyncState(false, false);           // gri pana confirma Firestore conexiunea
   renderCalendar();
   requestNotifPermission();
-  unsubscribeSnapshot = db.collection('bookings').onSnapshot(snapshot => {
+  // includeMetadataChanges: primim callback si cand se schimba DOAR starea (online/offline,
+  // scriere confirmata de server), nu doar cand se schimba datele. Fara asta, led-ul nu ar
+  // sti cand trecem de pe cache pe server.
+  unsubscribeSnapshot = db.collection('bookings').onSnapshot({ includeMetadataChanges: true }, snapshot => {
+    const online = !snapshot.metadata.fromCache;   // fromCache=true → date locale, fara server
     bookings = snapshot.docs.map(doc => doc.data());
+    setSyncState(online, online);        // setam starea INAINTE de render: daca renderAll arunca, led-ul ramane corect
     renderAll();
-    flashSync();
     scheduleReminders();
-  }, err => console.error('Firestore:', err));
+  }, err => { console.error('Firestore:', err); setSyncState(false, false); });
   // Verifică backup săptămânal după 3 secunde
   setTimeout(checkWeeklyBackup, 3000);
 }
 
-function flashSync() {
+// Led de stare permanent. online → verde, offline → gri.
+// pulse aprinde un halou scurt cand sosește o confirmare proaspătă de la server.
+function setSyncState(online, pulse) {
   const dot = document.getElementById('syncDot');
-  dot.classList.add('visible');
-  setTimeout(() => dot.classList.remove('visible'), 1500);
+  if (!dot) return;
+  dot.classList.toggle('online', online);
+  dot.classList.toggle('offline', !online);
+  dot.title = online ? 'Sincronizat cu serverul' : 'Offline — modificările se salvează local';
+  if (pulse) {
+    dot.classList.remove('pulse');
+    void dot.offsetWidth;                // reflow fortat, ca animatia sa reporneasca la fiecare sync
+    dot.classList.add('pulse');
+  }
 }
 
 // ── STATUS ────────────────────────────────────────────
