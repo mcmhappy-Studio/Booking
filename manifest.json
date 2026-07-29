@@ -1,7 +1,7 @@
 {
   "id": "/Booking/",
-  "name": "MCM Happy Studio",
-  "short_name": "MCM Studio",
+  "name": "Booking MCM",
+  "short_name": "Booking MCM",
   "description": "Calendar de rezervari foto/video - MCM Happy Studio",
   "start_url": "./index.html",
   "scope": "./",
